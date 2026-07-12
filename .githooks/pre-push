@@ -1,0 +1,36 @@
+#!/bin/bash
+# Refuse to push if the working tree is dirty or tests are failing.
+#
+# Enable once per checkout:  git config core.hooksPath .githooks
+#
+# Emergency bypass (do so with intent, not as a habit):
+#   git push --no-verify
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# 1. Enforce dirty tree policy from AGENTS.md
+if [ -n "$(git status --porcelain)" ]; then
+    echo "[pre-push] REFUSING PUSH: working tree has uncommitted or untracked files" >&2
+    echo "  Commit your changes or delete untracked files before pushing." >&2
+    echo "  See AGENTS.md for the shared contract." >&2
+    exit 1
+fi
+
+# 2. Enforce test suite passes
+PY="$ROOT/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3 || true)"
+
+if [ -x "$PY" ]; then
+    echo "[pre-push] running full test suite (this is the gate main relies on)…"
+    if ! "$PY" -m pytest harnessbench/tests/ -q --no-header; then
+        echo "" >&2
+        echo "[pre-push] REFUSING PUSH: test suite is red." >&2
+        echo "  Fix the failing tests before pushing." >&2
+        exit 1
+    fi
+else
+    echo "[pre-push] WARNING: python not found, skipping pytest execution." >&2
+fi
+
+exit 0

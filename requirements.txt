@@ -1,0 +1,12 @@
+# Core Harness Bench requirements
+litellm
+PyYAML
+
+# Transitive requirements for the SBD adapter
+httpx
+
+# MCP Support
+mcp
+
+# Testing
+pytest

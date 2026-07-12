@@ -1,0 +1,22 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Output and traces
+runs/
+agent_runs/
+*.jsonl
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

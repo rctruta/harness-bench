@@ -1,0 +1,12 @@
+[project]
+name = "harnessbench"
+version = "0.0.1"
+description = "Pre-deployment measurement for MCP/tool agents: cost, capability, and missing-state discovery — the work before the work."
+requires-python = ">=3.11"
+dependencies = ["pyyaml", "httpx", "litellm", "pydantic"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+harnessbench = "harnessbench.cli:main"

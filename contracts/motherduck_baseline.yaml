@@ -1,0 +1,21 @@
+# MotherDuck MCP Baseline Contract
+# Target: mcp:stdio:uvx mcp-server-motherduck
+
+driver: monolith
+models:
+  - gemini/gemini-2.5-flash
+#  - anthropic/claude-3-5-haiku-20241022
+
+replications: 1
+poll_budget_seconds: 180
+
+goal: >
+  You have access to a MotherDuck database. 
+  1. List all available tables in the database.
+  2. For the largest table (by row count), find the total number of rows.
+  Provide the exact count in your final answer.
+
+cells:
+  baseline:
+    flags:
+      steering: "none"
