@@ -19,6 +19,12 @@ def load_adapter(name: str) -> TargetAdapter:
         from harnessbench.adapters.skill import SkillAdapter
         return SkillAdapter(inner)
         
+    if name.startswith("mcp:http:"):
+        # e.g., mcp:http:http://localhost:4040/mcp
+        url = name[len("mcp:http:"):]
+        from harnessbench.adapters.mcp import McpAdapter
+        return McpAdapter(url=url)
+
     if name.startswith("mcp:stdio:"):
         # e.g., mcp:stdio:uvx mcp-server-motherduck
         cmd_str = name[len("mcp:stdio:"):]

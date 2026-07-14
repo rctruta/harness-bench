@@ -124,3 +124,50 @@ exact-value grading discipline used in the sqlbenchdag corpus applies.
 *Token figures are bytes/4 estimates; re-derive with a model tokenizer before
 publishing exact counts. Earlier informal estimate of ~80K counted all files
 (including malloy-review's 10 auxiliary files); SKILL.md bodies alone are ~50K.*
+
+---
+
+## Phase 0 dynamic probe (2026-07-14, n=1, 2 models × 3 goals)
+
+Target: official Docker image (`ms2data/malloy-publisher:latest`), DuckDB
+sample config, MCP over streamable HTTP (`:4040/mcp`). Models: gpt-4o-mini,
+claude-haiku-4.5. Contracts: `contracts/malloy_p0_{count,breakdown,model}.yaml`;
+traces in `runs/mcp-http-http-localhost-4040-m/`.
+
+**Instrument note (defect caught before conclusions).** The first sweep was
+invalidated by a harness-bench adapter defect: MCP embedded-resource results
+were rendered to the model as the literal string `[resource content]`. Both
+models then produced confident, specific, wrong flight counts ("exactly
+5,000"; "9,988,909") from that placeholder — ground truth is 344,827.
+Evidence-starvation fabrication reproduced across two vendors at once, and
+only trace autopsy caught it. All numbers below are from the post-fix rerun.
+
+**Results (post-fix):**
+
+| goal | gpt-4o-mini | claude-haiku-4.5 |
+|---|---|---|
+| exact flight count | honest failure after 7 failed queries (26K tok) | unverified derivation after 6 failed queries (57K tok) |
+| top-3 carriers | honest failure after 4 failed queries (14K tok) | **exact match to ground truth** (88,751/37,683/34,577) after 5 failed queries (40K tok) |
+| model comprehension (read-only) | clean, 0 errors, 7K tok | clean, 0 errors, 12K tok |
+
+**Findings:**
+
+1. **The dead channel is real and its cost is measurable.** Every failed
+   query in the table is a Malloy syntax/reserved-word error — the exact
+   error classes `gotchas-queries` and `gotchas-modeling` (~4.2K tokens)
+   exist to prevent. That guidance was unreachable: MCP prompts do not
+   appear in `tools/list`, so no autonomous agent can load them. 4–7
+   error-loop attempts per query goal is the per-run price of the
+   unreachable guidance.
+2. **Read-only goals are already well served.** Both models handled model
+   comprehension cleanly through the typed read tools. The gap is
+   query-*writing*, precisely where the prose guidance sits stranded.
+3. **Actionable for the Publisher team (the compilation move):** attach the
+   relevant gotcha snippet to `malloy_executeQuery`'s error responses
+   (teach at the error site), and/or fold the top constraints into the tool's
+   argument descriptions. Both deliver the existing prose through channels
+   agents demonstrably receive — no new content required.
+
+*n=1 probe; error-loop counts and token bands are indicative. A graded n=3
+sweep with an exact-value oracle (execute_query ground truth, demonstrated
+above) is the natural next study.*

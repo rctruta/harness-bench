@@ -9,6 +9,7 @@ import threading
 from typing import Dict, List, Optional, Callable
 
 from mcp.client.stdio import stdio_client, StdioServerParameters
+from mcp.client.streamable_http import streamablehttp_client
 from mcp.client.session import ClientSession
 
 from harnessbench.adapter import TargetAdapter, SpecialistRole, TerminalPolicy
@@ -17,8 +18,11 @@ from harnessbench.adapter import TargetAdapter, SpecialistRole, TerminalPolicy
 class McpAdapter(TargetAdapter):
     """Generic MCP adapter using a background asyncio event loop."""
 
-    def __init__(self, command: List[str]):
+    def __init__(self, command: Optional[List[str]] = None, url: Optional[str] = None):
+        if bool(command) == bool(url):
+            raise ValueError("McpAdapter needs exactly one of command (stdio) or url (http)")
         self._command = command
+        self._url = url
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
@@ -40,14 +44,18 @@ class McpAdapter(TargetAdapter):
 
     async def _connect(self):
         try:
-            server_params = StdioServerParameters(
-                command=self._command[0],
-                args=self._command[1:],
-            )
             # We must hold the context managers open indefinitely.
             # To do this safely in a background thread, we enter them manually.
-            self._stdio_cm = stdio_client(server_params)
-            self._read_stream, self._write_stream = await self._stdio_cm.__aenter__()
+            if self._url:
+                self._transport_cm = streamablehttp_client(self._url)
+                self._read_stream, self._write_stream, _ = await self._transport_cm.__aenter__()
+            else:
+                server_params = StdioServerParameters(
+                    command=self._command[0],
+                    args=self._command[1:],
+                )
+                self._transport_cm = stdio_client(server_params)
+                self._read_stream, self._write_stream = await self._transport_cm.__aenter__()
             
             self._session_cm = ClientSession(self._read_stream, self._write_stream)
             self._session = await self._session_cm.__aenter__()
@@ -60,6 +68,8 @@ class McpAdapter(TargetAdapter):
 
     @property
     def name(self) -> str:
+        if self._url:
+            return f"mcp:http:{self._url}"
         return f"mcp:stdio:{' '.join(self._command)}"
 
     def healthcheck(self) -> None:
@@ -105,6 +115,11 @@ class McpAdapter(TargetAdapter):
         for item in content_items:
             if item.type == "text":
                 texts.append(item.text)
+            elif item.type == "resource":
+                # EmbeddedResource: surface the actual payload, not a placeholder.
+                res = getattr(item, "resource", None)
+                text = getattr(res, "text", None)
+                texts.append(text if text is not None else f"[non-text resource: {getattr(res, 'uri', '?')}]")
             else:
                 texts.append(f"[{item.type} content]")
         return "\n".join(texts)

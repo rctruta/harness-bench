@@ -62,7 +62,11 @@ class MonolithDriver:
                 
             msg = response.choices[0].message
             messages.append(msg.model_dump(exclude_none=True))
-            
+            self.trace.model_response(
+                turn, getattr(msg, "content", "") or "",
+                getattr(msg, "tool_calls", None), response=response,
+            )
+
             # If the model chose to call tools
             if getattr(msg, "tool_calls", None):
                 for tc in msg.tool_calls:
@@ -72,16 +76,17 @@ class MonolithDriver:
                         args = json.loads(f.arguments)
                     except Exception as e:
                         args = {"error": f"Invalid JSON in arguments: {str(e)}"}
-                        
-                    self.trace.tool_call(name, args)
-                    
+
+                    self.trace.tool_call(turn, tc.id, name, args)
+
                     try:
                         result_str = self.adapter.execute_tool(name, args)
-                        self.trace.tool_result(name, result_str)
+                        self.trace.tool_result(turn, tc.id, name, result_str)
                     except Exception as e:
                         result_str = f"Tool execution failed: {str(e)}"
-                        self.trace.tool_result(name, result_str, error=True)
-                        
+                        self.trace.tool_result(turn, tc.id, name, result_str,
+                                               error_reason=str(e))
+
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
@@ -89,10 +94,11 @@ class MonolithDriver:
                         "content": result_str,
                     })
                 continue
-                
+
             # If no tools were called, the text is the final answer.
             final_text = getattr(msg, "content", "")
             if final_text:
+                self.trace.final_answer(turn, final_text)
                 self.trace.run_end("complete", turns_used=turn)
                 return MonolithResult(
                     outcome="complete", analysis=final_text, run_id=self.trace.run_id
