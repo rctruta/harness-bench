@@ -12,8 +12,8 @@ from typing import Dict, Any
 SBD_RESULTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../sql-benchmarks-dagster/sql_benchmarks/experiments/results"))
 
 DURATION_RE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(?:\\text\{)?\s*(ms|milliseconds|s\b|seconds)", re.IGNORECASE)
-RATIO_RE = re.compile(r"[~≈]?(\d+(?:\.\d+)?)\s*(?:[x×]\b|\\times)")
+    r"(\d+(?:\.\d+)?)\s*(?:\\text\{)?\s*(ms|milliseconds|sec(?:onds)?|s\b)", re.IGNORECASE)
+RATIO_RE = re.compile(r"[~≈]?(\d+(?:\.\d+)?)\s*(?:x\b|×|\\times)")
 EXP_ID_RE = re.compile(r"^[0-9a-f]{8}$")
 
 DUR_TOL = 0.02
