@@ -1,0 +1,22 @@
+# Reasoning Threshold Study: The Cost of Skills-with-Scripts
+# Target: Will be run against the "skill:sbd" adapter.
+
+driver: monolith
+models:
+  - anthropic/claude-fable-5
+  - anthropic/claude-opus-4-8
+  - gpt-5.2
+  - gpt-5.5
+#  - gemini/gemini-3.1-pro-preview
+
+replications: 1
+poll_budget_seconds: 60
+
+goal: >
+  Investigate how DuckDB performance scales on analytical aggregation
+  queries across small, medium, and large partitions. I want to know the 
+  pairwise scaling factors for DuckDB on the analytical_wall suite.
+
+cells:
+  baseline:
+    flags: {}

@@ -31,7 +31,7 @@ def healthcheck() -> None:
     """Check if the SBD FastAPI backend is running."""
     try:
         client = _get_client()
-        r = client.get("/", timeout=5.0)
+        r = client.get("/health", timeout=5.0)
         r.raise_for_status()
     except Exception as e:
         raise RuntimeError(f"SBD backend is not reachable. Is it running? Error: {e}")

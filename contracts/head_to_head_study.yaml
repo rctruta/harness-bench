@@ -1,0 +1,25 @@
+# Head-to-Head Study: Compiled Code Gates vs Skills-with-Scripts
+# Target: Will be run against both "sbd" and "skill:sbd" adapters sequentially.
+#
+# This study measures the Reasoning Tax. We want to see how many output tokens
+# the models burn when they are forced to use the SkillAdapter (which only gives
+# them bash and read_file to parse skills) versus the native SBD adapter 
+# which has the business logic compiled into the Python backend.
+
+driver: monolith
+models:
+  - gpt-4o-mini
+  - gpt-4o
+  - o3-mini
+  - anthropic/claude-haiku-4-5-20251001
+replications: 3
+poll_budget_seconds: 60
+
+goal: >
+  Investigate how DuckDB performance scales on analytical aggregation
+  queries across small, medium, and large partitions. I want to know the 
+  pairwise scaling factors for DuckDB on the analytical_wall suite.
+
+cells:
+  baseline:
+    flags: {}
