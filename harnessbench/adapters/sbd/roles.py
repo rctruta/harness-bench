@@ -66,9 +66,7 @@ CONFIG_BUILDER = SpecialistRole(
 ANALYZER = SpecialistRole(
     name="analyzer",
     tool_names=[
-        "get_experiment_summary", "get_means_by_partition", "get_means_by_benchmark",
-        "get_scaling_factor", "get_replication_stability", "compare_engines",
-        "compare_engines_by_partition", "get_experiment_result",
+        "analyze_experiment", "get_means_by_benchmark"
     ],
     system_prompt=ANALYZER_PROMPT,
     max_turns=15,
@@ -79,10 +77,7 @@ LIBRARIAN = SpecialistRole(
     name="librarian",
     tool_names=[
         "search_published_capsules", "list_lab_docs", "get_lab_doc",
-        "list_categories",
-        "get_experiment_summary", "get_means_by_partition",
-        "get_means_by_benchmark", "get_scaling_factor",
-        "get_replication_stability",
+        "list_categories", "analyze_experiment", "get_means_by_benchmark"
     ],
     system_prompt=LIBRARIAN_PROMPT,
     max_turns=12,

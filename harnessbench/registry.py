@@ -13,6 +13,12 @@ def load_adapter(name: str) -> TargetAdapter:
         from harnessbench.tests.fake_adapter import FakeAdapter
         return FakeAdapter()
         
+    if name.startswith("skill:"):
+        inner_name = name[len("skill:"):]
+        inner = load_adapter(inner_name)
+        from harnessbench.adapters.skill import SkillAdapter
+        return SkillAdapter(inner)
+        
     if name.startswith("mcp:stdio:"):
         # e.g., mcp:stdio:uvx mcp-server-motherduck
         cmd_str = name[len("mcp:stdio:"):]
