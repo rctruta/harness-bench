@@ -2,6 +2,7 @@
 import argparse
 import sys
 import json
+import os
 from harnessbench.api import check_environment, run_benchmark
 
 

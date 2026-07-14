@@ -20,3 +20,6 @@ agent_runs/
 .vscode/
 .idea/
 .DS_Store
+
+# WIP
+scratch/

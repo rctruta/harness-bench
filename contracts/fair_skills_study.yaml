@@ -1,0 +1,20 @@
+# Fair Skills Study: The Cost of Skills-with-Scripts (with explicit scripts)
+# Target: Will be run against the "skill:sbd" adapter.
+
+driver: monolith
+models:
+  - gpt-4o-mini
+  - gpt-4o
+  - o3-mini
+
+replications: 1
+poll_budget_seconds: 60
+
+goal: >
+  Investigate how DuckDB performance scales on analytical aggregation
+  queries across small, medium, and large partitions. I want to know the 
+  pairwise scaling factors for DuckDB on the analytical_wall suite.
+
+cells:
+  baseline:
+    flags: {}
