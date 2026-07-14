@@ -86,6 +86,12 @@ def extract_answer_and_exp(path: str):
             eid = arg.get("experiment_id") if isinstance(arg, dict) else None
             if eid and EXP_ID_RE.match(str(eid)):
                 exp_ids.append(eid)
+            else:
+                # skill/bash surfaces carry the ID inside command strings and
+                # file paths, not as a typed argument
+                for tok in re.findall(r"\b[0-9a-f]{8}\b", json.dumps(arg)):
+                    if os.path.isdir(os.path.join(SBD_RESULTS_DIR, tok)):
+                        exp_ids.append(tok)
     exp_id = max(set(exp_ids), key=exp_ids.count) if exp_ids else None
     return answer, exp_id
 
