@@ -177,6 +177,9 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                         "The following skill guidance applies to this task.\n\n"
                         + "\n\n---\n\n".join(bodies))
 
+                from harnessbench.hooks import build_hooks
+                cell_hooks = build_hooks(flags.get("hooks"))
+
                 try:
                     if adapter.roles():
                         driver = Orchestrator(
@@ -193,12 +196,14 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                             goal=contract["goal"],
                             model=model,
                             runs_dir=runs_dir,
-                            system_preamble=system_preamble
+                            system_preamble=system_preamble,
+                            hooks=cell_hooks
                         )
                         architecture = "monolith"
 
                     study_stamp = {"study_id": study_id, "cell": cell, "rep": rep, "study_model": model,
-                                   "inject_prompts": inject or []}
+                                   "inject_prompts": inject or [],
+                                   "hooks": flags.get("hooks") or []}
                     driver.trace.prompt_provenance(components={}, ablation_flags={
                         "architecture": architecture, **study_stamp})
                     

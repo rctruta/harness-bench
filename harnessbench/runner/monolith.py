@@ -9,6 +9,7 @@ import json
 import litellm
 
 from harnessbench.adapter import TargetAdapter
+from harnessbench.hooks import HookState
 from harnessbench.trace import AgentTrace
 
 
@@ -24,11 +25,14 @@ class MonolithDriver:
     """A generic, unspecialized agent loop."""
     
     def __init__(self, adapter: TargetAdapter, goal: str, model: str,
-                 runs_dir: str = "./agent_runs", system_preamble: Optional[str] = None):
+                 runs_dir: str = "./agent_runs", system_preamble: Optional[str] = None,
+                 hooks: Optional[list] = None):
         self.adapter = adapter
         self.goal = goal
         self.model = model
         self.system_preamble = system_preamble
+        self.hooks = hooks or []
+        self.hook_state = HookState()
         self.trace = AgentTrace(
             goal=f"[monolith] {goal}", model=model,
             agents_md_loaded=False, max_turns=20,
@@ -84,13 +88,26 @@ class MonolithDriver:
 
                     self.trace.tool_call(turn, tc.id, name, args)
 
-                    try:
-                        result_str = self.adapter.execute_tool(name, args)
-                        self.trace.tool_result(turn, tc.id, name, result_str)
-                    except Exception as e:
-                        result_str = f"Tool execution failed: {str(e)}"
+                    refusal = None
+                    for hook in self.hooks:
+                        refusal = hook(name, args, self.hook_state)
+                        if refusal:
+                            break
+                    self.hook_state.record_call(name)
+
+                    if refusal:
+                        result_str = refusal
                         self.trace.tool_result(turn, tc.id, name, result_str,
-                                               error_reason=str(e))
+                                               error_reason="gate_refused")
+                    else:
+                        try:
+                            result_str = self.adapter.execute_tool(name, args)
+                            self.trace.tool_result(turn, tc.id, name, result_str)
+                            self.hook_state.record_success(name)
+                        except Exception as e:
+                            result_str = f"Tool execution failed: {str(e)}"
+                            self.trace.tool_result(turn, tc.id, name, result_str,
+                                                   error_reason=str(e))
 
                     messages.append({
                         "role": "tool",
