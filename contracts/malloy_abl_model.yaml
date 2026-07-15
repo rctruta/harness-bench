@@ -1,0 +1,26 @@
+# Ablation: does injecting the (unreachable) skill guidance fix the failure?
+# Target: mcp:http:http://localhost:4040/mcp (ms2data/malloy-publisher:latest)
+# Skill bodies injected from repo files at malloydata/publisher@ad6c09b
+# (the released image does NOT serve the 28 skills as prompts; only 4
+# versioned utility prompts. Channel absence recorded 2026-07-14.)
+# Frontier datapoint (sonnet-5) included to distinguish "skills rescue
+# cheap models" from "channel fails everyone".
+
+driver: monolith
+models:
+  - gpt-4o-mini
+  - anthropic/claude-haiku-4-5-20251001
+  - anthropic/claude-sonnet-5
+replications: 1
+poll_budget_seconds: 120
+
+goal: >
+  Look at the ecommerce package. What dimensions and measures does its main semantic model define? Summarize the model's analytical surface in a short list.
+
+cells:
+  baseline:
+    flags: {}
+  skills_injected:
+    flags:
+      inject_files:
+        - /tmp/malloy-publisher/skills/malloy-modeling/SKILL.md

@@ -23,10 +23,12 @@ class MonolithResult:
 class MonolithDriver:
     """A generic, unspecialized agent loop."""
     
-    def __init__(self, adapter: TargetAdapter, goal: str, model: str, runs_dir: str = "./agent_runs"):
+    def __init__(self, adapter: TargetAdapter, goal: str, model: str,
+                 runs_dir: str = "./agent_runs", system_preamble: Optional[str] = None):
         self.adapter = adapter
         self.goal = goal
         self.model = model
+        self.system_preamble = system_preamble
         self.trace = AgentTrace(
             goal=f"[monolith] {goal}", model=model,
             agents_md_loaded=False, max_turns=20,
@@ -34,7 +36,10 @@ class MonolithDriver:
         )
         
     def run(self) -> MonolithResult:
-        messages = [{"role": "user", "content": self.goal}]
+        messages = []
+        if self.system_preamble:
+            messages.append({"role": "system", "content": self.system_preamble})
+        messages.append({"role": "user", "content": self.goal})
         tools = self.adapter.tools(neutral_descriptions=True)
         
         turn = 0

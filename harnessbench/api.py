@@ -151,6 +151,26 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -
                 model_slug = slugify(model)
                 os.environ["AGENT_TRACE_PREFIX"] = f"trace_{model_slug}_{cell}_r{rep}"
                 
+                flags = (contract["cells"].get(cell) or {}).get("flags", {}) if isinstance(contract["cells"], dict) else {}
+                system_preamble = None
+                inject = flags.get("inject_prompts")
+                inject_files = flags.get("inject_files")
+                if inject:
+                    if not hasattr(adapter, "get_prompt"):
+                        raise RuntimeError(
+                            f"cell '{cell}' sets inject_prompts but adapter "
+                            f"'{adapter.name}' has no prompts channel")
+                    bodies = [f"## Skill: {p}\n\n{adapter.get_prompt(p)}" for p in inject]
+                elif inject_files:
+                    bodies = []
+                    for p in inject_files:
+                        with open(p, encoding="utf-8") as fh:
+                            bodies.append(fh.read())
+                if inject or inject_files:
+                    system_preamble = (
+                        "The following skill guidance applies to this task.\n\n"
+                        + "\n\n---\n\n".join(bodies))
+
                 try:
                     if adapter.roles():
                         driver = Orchestrator(
@@ -166,11 +186,13 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -
                             adapter=adapter,
                             goal=contract["goal"],
                             model=model,
-                            runs_dir=runs_dir
+                            runs_dir=runs_dir,
+                            system_preamble=system_preamble
                         )
                         architecture = "monolith"
-                    
-                    study_stamp = {"study_id": study_id, "cell": cell, "rep": rep, "study_model": model}
+
+                    study_stamp = {"study_id": study_id, "cell": cell, "rep": rep, "study_model": model,
+                                   "inject_prompts": inject or []}
                     driver.trace.prompt_provenance(components={}, ablation_flags={
                         "architecture": architecture, **study_stamp})
                     

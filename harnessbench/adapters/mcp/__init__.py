@@ -124,6 +124,20 @@ class McpAdapter(TargetAdapter):
                 texts.append(f"[{item.type} content]")
         return "\n".join(texts)
 
+    def get_prompt(self, name: str) -> str:
+        """Fetch an MCP prompt body from the target server (the skills channel)."""
+        async def _get():
+            res = await self._session.get_prompt(name)
+            return res.messages
+
+        future = asyncio.run_coroutine_threadsafe(_get(), self._loop)
+        messages = future.result(timeout=30.0)
+        texts = []
+        for m in messages:
+            c = m.content
+            texts.append(c.text if getattr(c, "type", "") == "text" else f"[{c.type}]")
+        return "\n".join(texts)
+
     def roles(self) -> Dict[str, SpecialistRole]:
         # Returns {} so the Orchestrator falls back to MonolithDriver
         return {}
