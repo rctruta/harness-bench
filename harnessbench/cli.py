@@ -3,6 +3,8 @@ import argparse
 import sys
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from harnessbench.api import check_environment, run_benchmark
 
 
@@ -20,7 +22,8 @@ def main():
     parser_run.add_argument("contract", help="Path to study YAML contract")
     parser_run.add_argument("--target", required=True, help="Target Adapter (e.g., sbd)")
     parser_run.add_argument("--dry-run", action="store_true", help="Print matrix without executing")
-
+    parser_run.add_argument("--alias", help="Name for the runs/ subdirectory (default: slug of the target string)")
+    parser_run.add_argument("--no-grade", action="store_true", help="Skip automatic grading after run completion")
     parser_grade = subparsers.add_parser("grade", help="Grade a completed study directory")
     parser_grade.add_argument("study_dir", help="Path to the directory containing agent traces")
     parser_grade.add_argument("--target", required=True, help="Target adapter (e.g. sbd or mcp:stdio:cmd)")
@@ -41,8 +44,21 @@ def main():
 
     elif args.command == "run":
         print(f"Starting run for target: {args.target}")
-        outcomes = run_benchmark(args.contract, args.target)
-        print(f"Run complete. Outcomes: {outcomes}")
+        outcomes = run_benchmark(args.contract, args.target, dry_run=args.dry_run, alias=args.alias)
+        print(f"Run complete. Outcomes: {outcomes.get('outcomes', outcomes)}")
+        
+        if not args.dry_run and not args.no_grade:
+            if outcomes.get("status") == "complete" and "runs_dir" in outcomes:
+                from harnessbench.registry import load_adapter
+                from harnessbench.grade import grade_study
+                adapter = load_adapter(args.target)
+                runs_dir = outcomes["runs_dir"]
+                print(f"\\nAuto-grading study in {runs_dir}")
+                results = grade_study(runs_dir, adapter)
+                out_path = os.path.join(runs_dir, "graded_traces.json")
+                with open(out_path, "w") as f:
+                    json.dump(results, f, indent=2)
+                print(f"Graded {len(results)} traces. Output saved to {out_path}")
 
     elif args.command == "grade":
         from harnessbench.registry import load_adapter

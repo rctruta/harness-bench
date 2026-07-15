@@ -95,18 +95,24 @@ def get_target_slug(target_name: str) -> str:
     return slugify(target_name)
 
 
-def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -> dict:
-    """Runs a study contract against a specific target."""
+def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
+                  alias: str = None) -> dict:
+    """Runs a study contract against a specific target.
+
+    `alias` names the runs/ subdirectory; it defaults to a slug derived from
+    the target string, which is a connection detail, not a name — prefer an
+    explicit alias (e.g. 'malloy-publisher').
+    """
     check_res = check_environment(contract_path, target_name)
     if check_res["status"] != "ok":
         raise RuntimeError(f"Pre-flight check failed: {check_res['message']}")
 
     study_id, contract = load_contract(contract_path)
     adapter = load_adapter(target_name)
-    
+
     study_name = os.path.splitext(os.path.basename(contract_path))[0]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    target_slug = get_target_slug(target_name)
+    target_slug = slugify(alias) if alias else get_target_slug(target_name)
     
     base_runs_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "runs"))
     # New structure: runs/{target_slug}/{timestamp}_{study_id}/{study_name}
@@ -151,6 +157,26 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -
                 model_slug = slugify(model)
                 os.environ["AGENT_TRACE_PREFIX"] = f"trace_{model_slug}_{cell}_r{rep}"
                 
+                flags = (contract["cells"].get(cell) or {}).get("flags", {}) if isinstance(contract["cells"], dict) else {}
+                system_preamble = None
+                inject = flags.get("inject_prompts")
+                inject_files = flags.get("inject_files")
+                if inject:
+                    if not hasattr(adapter, "get_prompt"):
+                        raise RuntimeError(
+                            f"cell '{cell}' sets inject_prompts but adapter "
+                            f"'{adapter.name}' has no prompts channel")
+                    bodies = [f"## Skill: {p}\n\n{adapter.get_prompt(p)}" for p in inject]
+                elif inject_files:
+                    bodies = []
+                    for p in inject_files:
+                        with open(p, encoding="utf-8") as fh:
+                            bodies.append(fh.read())
+                if inject or inject_files:
+                    system_preamble = (
+                        "The following skill guidance applies to this task.\n\n"
+                        + "\n\n---\n\n".join(bodies))
+
                 try:
                     if adapter.roles():
                         driver = Orchestrator(
@@ -166,11 +192,13 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -
                             adapter=adapter,
                             goal=contract["goal"],
                             model=model,
-                            runs_dir=runs_dir
+                            runs_dir=runs_dir,
+                            system_preamble=system_preamble
                         )
                         architecture = "monolith"
-                    
-                    study_stamp = {"study_id": study_id, "cell": cell, "rep": rep, "study_model": model}
+
+                    study_stamp = {"study_id": study_id, "cell": cell, "rep": rep, "study_model": model,
+                                   "inject_prompts": inject or []}
                     driver.trace.prompt_provenance(components={}, ablation_flags={
                         "architecture": architecture, **study_stamp})
                     

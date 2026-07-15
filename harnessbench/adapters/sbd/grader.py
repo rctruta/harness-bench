@@ -12,8 +12,8 @@ from typing import Dict, Any
 SBD_RESULTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../sql-benchmarks-dagster/sql_benchmarks/experiments/results"))
 
 DURATION_RE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(?:\\text\{)?\s*(ms|milliseconds|s\b|seconds)", re.IGNORECASE)
-RATIO_RE = re.compile(r"[~≈]?(\d+(?:\.\d+)?)\s*(?:[x×]\b|\\times)")
+    r"(\d+(?:\.\d+)?)\s*(?:\\text\{)?\s*(ms|milliseconds|sec(?:onds)?|s\b)", re.IGNORECASE)
+RATIO_RE = re.compile(r"[~≈]?(\d+(?:\.\d+)?)\s*(?:x\b|×|\\times)")
 EXP_ID_RE = re.compile(r"^[0-9a-f]{8}$")
 
 DUR_TOL = 0.02
@@ -86,6 +86,12 @@ def extract_answer_and_exp(path: str):
             eid = arg.get("experiment_id") if isinstance(arg, dict) else None
             if eid and EXP_ID_RE.match(str(eid)):
                 exp_ids.append(eid)
+            else:
+                # skill/bash surfaces carry the ID inside command strings and
+                # file paths, not as a typed argument
+                for tok in re.findall(r"\b[0-9a-f]{8}\b", json.dumps(arg)):
+                    if os.path.isdir(os.path.join(SBD_RESULTS_DIR, tok)):
+                        exp_ids.append(tok)
     exp_id = max(set(exp_ids), key=exp_ids.count) if exp_ids else None
     return answer, exp_id
 
