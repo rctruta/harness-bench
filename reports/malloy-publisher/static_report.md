@@ -88,4 +88,4 @@ High overlap means description-based routing must distinguish near-identical tri
 - **malloy-analysis** (~1,610 tok): Workflow for answering data questions against Malloy semantic models served by Publisher, using the malloy-publisher MCP
 - **malloy-modeling** (~2,451 tok): Build semantic models with Malloy for the Malloy Publisher. Read this skill whenever the user asks about modeling data o
 
-6 skills, ~10,802 tokens. Delivered on-demand (MCP prompts), these are consulted only after the mistake they exist to prevent — the delivery channel inverts their purpose.
+6 skills, ~10,802 tokens (keyword-classified; verify membership manually).

@@ -98,9 +98,8 @@ def main(root):
     for s in prevention:
         print(f"- **{s['name']}** (~{s['body_tok']:,} tok): {s['desc'][:120]}")
     ptok = sum(s["body_tok"] for s in prevention)
-    print(f"\n{len(prevention)} skills, ~{ptok:,} tokens. Delivered on-demand "
-          f"(MCP prompts), these are consulted only after the mistake they exist "
-          f"to prevent — the delivery channel inverts their purpose.")
+    print(f"\n{len(prevention)} skills, ~{ptok:,} tokens (keyword-classified; "
+          f"verify membership manually).")
 
 
 if __name__ == "__main__":
