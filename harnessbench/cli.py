@@ -22,6 +22,7 @@ def main():
     parser_run.add_argument("contract", help="Path to study YAML contract")
     parser_run.add_argument("--target", required=True, help="Target Adapter (e.g., sbd)")
     parser_run.add_argument("--dry-run", action="store_true", help="Print matrix without executing")
+    parser_run.add_argument("--alias", help="Name for the runs/ subdirectory (default: slug of the target string)")
     parser_run.add_argument("--no-grade", action="store_true", help="Skip automatic grading after run completion")
     parser_grade = subparsers.add_parser("grade", help="Grade a completed study directory")
     parser_grade.add_argument("study_dir", help="Path to the directory containing agent traces")
@@ -43,7 +44,7 @@ def main():
 
     elif args.command == "run":
         print(f"Starting run for target: {args.target}")
-        outcomes = run_benchmark(args.contract, args.target, dry_run=args.dry_run)
+        outcomes = run_benchmark(args.contract, args.target, dry_run=args.dry_run, alias=args.alias)
         print(f"Run complete. Outcomes: {outcomes.get('outcomes', outcomes)}")
         
         if not args.dry_run and not args.no_grade:

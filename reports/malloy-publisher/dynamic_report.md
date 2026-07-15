@@ -39,9 +39,9 @@
 ## Run directories
 
 
-- `runs/mcp-http-http-localhost-4040-m/20260714_205129_2af14afd/malloy_abl_count`
-- `runs/mcp-http-http-localhost-4040-m/20260714_205254_428ca9b0/malloy_abl_breakdown`
-- `runs/mcp-http-http-localhost-4040-m/20260714_205411_ec3e223a/malloy_abl_model`
+- `runs/malloy-publisher/20260714_205129_2af14afd/malloy_abl_count`
+- `runs/malloy-publisher/20260714_205254_428ca9b0/malloy_abl_breakdown`
+- `runs/malloy-publisher/20260714_205411_ec3e223a/malloy_abl_model`
 
 ## Disclosure: adapter defect during the earlier probe phase
 

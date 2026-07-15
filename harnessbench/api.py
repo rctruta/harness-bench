@@ -95,18 +95,24 @@ def get_target_slug(target_name: str) -> str:
     return slugify(target_name)
 
 
-def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -> dict:
-    """Runs a study contract against a specific target."""
+def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
+                  alias: str = None) -> dict:
+    """Runs a study contract against a specific target.
+
+    `alias` names the runs/ subdirectory; it defaults to a slug derived from
+    the target string, which is a connection detail, not a name — prefer an
+    explicit alias (e.g. 'malloy-publisher').
+    """
     check_res = check_environment(contract_path, target_name)
     if check_res["status"] != "ok":
         raise RuntimeError(f"Pre-flight check failed: {check_res['message']}")
 
     study_id, contract = load_contract(contract_path)
     adapter = load_adapter(target_name)
-    
+
     study_name = os.path.splitext(os.path.basename(contract_path))[0]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    target_slug = get_target_slug(target_name)
+    target_slug = slugify(alias) if alias else get_target_slug(target_name)
     
     base_runs_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "runs"))
     # New structure: runs/{target_slug}/{timestamp}_{study_id}/{study_name}

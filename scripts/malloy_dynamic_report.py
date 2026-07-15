@@ -10,7 +10,7 @@ import json
 import os
 import re
 
-RUN_ROOT = "runs/mcp-http-http-localhost-4040-m"
+RUN_ROOT = "runs/malloy-publisher"
 GOALS = ["count", "breakdown", "model"]
 
 
