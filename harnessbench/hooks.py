@@ -54,7 +54,66 @@ def _max_calls(spec: dict) -> Callable:
     return hook
 
 
-BUILTIN = {"require_before": _require_before, "max_calls": _max_calls}
+def _require_matching_before(spec: dict) -> Callable:
+    """For single-tool surfaces (e.g. a raw SQL `query` tool): calls to `tool`
+    whose `arg` does NOT match `pattern` are refused until one matching call
+    has been allowed through. The librarian-as-gate: grounding first, by
+    construction. (The marker is set when a matching call is dispatched, not
+    on its success — a failing grounding query still counts as an attempt.)
+
+        - require_matching_before: {tool: query, arg: query,
+            pattern: "(?i)information_schema|show |describe ",
+            message: "inspect the schema first"}
+    """
+    import re
+    tool = spec["tool"]
+    arg = spec["arg"]
+    pattern = re.compile(spec["pattern"])
+    message = spec.get("message", "make a matching call first")
+    marker = f"{tool}:matched:{spec['pattern']}"
+
+    def hook(name: str, args: dict, state: HookState) -> Optional[str]:
+        if name != tool:
+            return None
+        value = str((args or {}).get(arg, ""))
+        if pattern.search(value):
+            state.record_success(marker)
+            return None
+        if marker not in state.succeeded:
+            return (f"REFUSED by gate require_matching_before: {message} "
+                    f"(a {tool} call matching /{pattern.pattern}/ must be "
+                    f"made before this one).")
+        return None
+    return hook
+
+
+def _deny_args(spec: dict) -> Callable:
+    """Refuse any call to `tool` whose `arg` matches `pattern` — the payload
+    gate (e.g. unbounded SELECT * dumps, which compound across later turns).
+
+        - deny_args: {tool: query, arg: query,
+            pattern: "(?is)select\\\\s+\\\\*(?!.*limit)",
+            message: "no unbounded SELECT *; project columns or add LIMIT"}
+    """
+    import re
+    tool = spec["tool"]
+    arg = spec["arg"]
+    pattern = re.compile(spec["pattern"])
+    message = spec.get("message", "argument matches a denied pattern")
+
+    def hook(name: str, args: dict, state: HookState) -> Optional[str]:
+        if name == tool and pattern.search(str((args or {}).get(arg, ""))):
+            return f"REFUSED by gate deny_args: {message}"
+        return None
+    return hook
+
+
+BUILTIN = {
+    "require_before": _require_before,
+    "max_calls": _max_calls,
+    "require_matching_before": _require_matching_before,
+    "deny_args": _deny_args,
+}
 
 
 def build_hooks(specs: List[dict]) -> List[Callable]:
