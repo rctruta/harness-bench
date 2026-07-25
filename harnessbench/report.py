@@ -21,11 +21,41 @@ def condition_label(flags: dict) -> str:
     return f"{flags.get('architecture', '?')}({short})"
 
 
-def generate_report(graded_traces: List[Dict[str, Any]]) -> str:
-    """Take a list of graded traces and render a markdown report."""
+class MockTraceError(RuntimeError):
+    """Raised when graded_traces contain simulated (mock) tool results and
+    the caller did not explicitly acknowledge that with allow_mock=True.
+
+    This is the mechanical half of the fix for the Bauplan incident: an
+    adapter can still run in mock mode, but the report generator can no
+    longer render output that looks like a real run without a human
+    explicitly opting in. See specimen SBD-10 (dual_agent_collaboration.md).
+    """
+
+
+def generate_report(graded_traces: List[Dict[str, Any]], allow_mock: bool = False) -> str:
+    """Take a list of graded traces and render a markdown report.
+
+    Raises MockTraceError if any trace ran against a mock/simulated adapter
+    and allow_mock is not explicitly set to True. Traces with no mode stamp
+    at all (legacy traces, or adapters that don't declare .mode) are treated
+    as unknown, not mock — they pass through with a neutral label.
+    """
     if not graded_traces:
         return "No traces to report."
-        
+
+    mock_run_ids = [
+        gt["markers"]["run_id"] for gt in graded_traces
+        if "mock" in (gt["markers"].get("execution_modes") or [])
+    ]
+    if mock_run_ids and not allow_mock:
+        raise MockTraceError(
+            f"{len(mock_run_ids)} of {len(graded_traces)} traces ran in MOCK mode "
+            f"(simulated tool results, not a real target): {mock_run_ids}. "
+            "This report would misrepresent a simulated run as real. "
+            "Pass allow_mock=True (CLI: --allow-mock) if you intend that, "
+            "and the report will be watermarked accordingly."
+        )
+
     by_condition = defaultdict(list)
     for gt in graded_traces:
         m = gt["markers"]
@@ -34,23 +64,30 @@ def generate_report(graded_traces: List[Dict[str, Any]]) -> str:
 
     lines = []
     lines.append("# Harness Bench Report")
+    if mock_run_ids:
+        lines.append("")
+        lines.append(f"> ⚠️ **SIMULATED — {len(mock_run_ids)} of {len(graded_traces)} traces ran "
+                     "in MOCK mode.** Tool results were fabricated by the adapter, not produced "
+                     "by a real target. Do not present this report as a live run.")
     lines.append("")
-    
+
     for cond in sorted(by_condition.keys()):
         group = by_condition[cond]
         lines.append(f"## {cond} (n={len(group)})")
-        
+
         # Build table
-        lines.append("| Run ID | Outcome | Turns | Tokens | Grade | Details |")
-        lines.append("|---|---|---|---|---|---|")
-        
+        lines.append("| Run ID | Mode | Outcome | Turns | Tokens | Grade | Details |")
+        lines.append("|---|---|---|---|---|---|---|")
+
         for gt in group:
             m = gt["markers"]
             run_id = m["run_id"]
+            modes = m.get("execution_modes") or []
+            mode_label = "/".join(modes) if modes else "unknown"
             outcome = m.get("outcome", "-")
             turns = m.get("turns", 0)
             tokens = m.get("tokens", 0)
-            
+
             grade_obj = gt.get("grade")
             if grade_obj:
                 verdict = grade_obj.get("verdict", "-")
@@ -64,7 +101,7 @@ def generate_report(graded_traces: List[Dict[str, Any]]) -> str:
                 verdict = "N/A"
                 details = "-"
                 
-            lines.append(f"| {run_id} | {outcome} | {turns} | {tokens:,} | **{verdict}** | {details} |")
+            lines.append(f"| {run_id} | {mode_label} | {outcome} | {turns} | {tokens:,} | **{verdict}** | {details} |")
             
         lines.append("")
         

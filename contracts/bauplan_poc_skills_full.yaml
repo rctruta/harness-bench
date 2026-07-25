@@ -1,0 +1,43 @@
+# Bauplan PoC — Cell 1: Claude Code path, as Bauplan ships it.
+# CLAUDE.md + the relevant SKILL.md injected wholesale into the system
+# prompt (real, cloned from github.com/BauplanLabs/bauplan-skills).
+# Compare against contracts/bauplan_poc_mcp_mirror.yaml (Cell 2: their own
+# MCP path — compact tool schema + on-demand get_instructions).
+#
+# Grading: real ground truth, not tool-sequence checking — see
+# harnessbench/graders/bauplan_q3_ground_truth.py. The agent must author
+# its own pipeline code (bauplan_write_and_run); nothing is pre-built for it.
+
+driver: monolith
+expect_mode: real
+replications: 1
+
+models:
+  - gemini/gemini-2.5-flash
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o-mini
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-b' (not main — you do not have permission to merge into
+  main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_skills_full:
+    description: "CLAUDE.md + bauplan-data-pipeline SKILL.md injected wholesale (as Claude Code ships it)."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/CLAUDE.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"

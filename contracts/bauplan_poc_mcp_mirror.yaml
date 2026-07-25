@@ -1,0 +1,37 @@
+# Bauplan PoC — Cell 2: their own MCP path (mirrored — see
+# harnessbench/adapters/bauplan_mcp_mirror.py for why it's a mirror, not
+# the live server: real OAuth requirement, verified live).
+# No guidance injected — the agent must discover it via get_instructions,
+# a real tool on Bauplan's own MCP server, on demand, if it decides to.
+# Compare against contracts/bauplan_poc_skills_full.yaml (Cell 1).
+
+driver: monolith
+expect_mode: real
+replications: 1
+
+models:
+  - gemini/gemini-2.5-flash
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o-mini
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-b' (not main — you do not have permission to merge into
+  main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_2_mcp_mirror:
+    description: "Bauplan's own MCP tool surface (compact schema, get_instructions on demand). No guidance injected."
+    flags: {}

@@ -1,0 +1,42 @@
+# Matched architecture comparison, orchestrator side. Same goal, same real
+# ground-truth grading, same models as contracts/bauplan_matched_monolith.yaml —
+# only the driver differs. See that file's header for why this model
+# roster (not flash/4o-mini) is the fair capability-tier match.
+#
+# No hardcoded branch name in the goal (unlike the earlier structural-test
+# contract, bauplan_poc_orchestrator.yaml) — with replications: 3, a fixed
+# branch name would collide on rep 2 (bauplan_checkout_branch refuses
+# loudly on an existing name, by design — specimen re: silent branch
+# adoption). The BRANCH_DEVELOPER role's own system prompt already tells
+# it to pick a branch name itself.
+
+driver: bauplan_orchestrator
+expect_mode: real
+replications: 3
+
+models:
+  - gemini/gemini-2.5-pro
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-matched' (not main — you do not have permission to merge
+  into main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_state_machine:
+    description: "State-machine specialist roles, zero prose skills (data_explorer -> branch_developer -> auditor)."
+    flags: {}

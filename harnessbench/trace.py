@@ -9,12 +9,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Optional, Dict
 
-
-def slugify(text: str) -> str:
-    """Return a file-safe lowercased slug of model names."""
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    return text.strip("-")[:30]
+from harnessbench.trace_utils import slugify
 
 
 def _new_run_id(goal: str) -> str:
@@ -131,7 +126,8 @@ class AgentTrace:
         })
 
     def tool_result(self, turn: int, tool_call_id: str, name: str,
-                    result: str, error_reason: Optional[str] = None) -> None:
+                    result: str, error_reason: Optional[str] = None,
+                    mode: Optional[str] = None) -> None:
         self._emit("tool_result", {
             "turn": turn,
             "tool_call_id": tool_call_id,
@@ -139,6 +135,10 @@ class AgentTrace:
             "result": result or "",
             "result_len": len(result or ""),
             "error_reason": error_reason,
+            # Stamped by the ENGINE from adapter.mode, not self-reported by the
+            # agent — this is what makes "was this run real or simulated"
+            # mechanically checkable instead of a claim in a report.
+            "mode": mode,
         })
 
     def nudge(self, turn: int, reason: str, attempt: int, max_attempts: int) -> None:

@@ -5,10 +5,14 @@ This module exposes the unified logic for the CLI and MCP dual-interfaces.
 import litellm
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 from harnessbench.registry import load_adapter
 from harnessbench.contracts import load_contract
 from harnessbench.runner.orchestrator import Orchestrator
+from harnessbench.runner.bauplan_orchestrator import BauplanOrchestrator
 from harnessbench.runner.monolith import MonolithDriver
+from harnessbench.trace_utils import slugify
 
 
 def _check_ollama_model(model_name: str) -> tuple[bool, str]:
@@ -57,6 +61,23 @@ def check_environment(contract_path: str, target_name: str) -> dict:
             "message": f"Target '{target_name}' failed healthcheck: {e}"
         }
 
+    # 1b. Mode contract (see contracts.py 'expect_mode' — specimen SBD-12):
+    # refuse BEFORE any spend if the contract expects real/mock execution
+    # and the constructed adapter is in the other mode.
+    expect_mode = contract.get("expect_mode")
+    actual_mode = getattr(adapter, "mode", None)
+    if expect_mode and actual_mode and expect_mode != actual_mode:
+        return {
+            "status": "error",
+            "message": (
+                f"Contract declares expect_mode: {expect_mode!r} but target "
+                f"'{target_name}' constructed in mode {actual_mode!r}. "
+                f"Refusing to run — this is the exact mismatch that produced "
+                f"a fabricated-data study (specimen SBD-12). Fix the target "
+                f"name/registry entry so the adapter's real mode matches."
+            ),
+        }
+
     # 2. Validate API Keys via litellm
     for model in models:
         try:
@@ -73,13 +94,6 @@ def check_environment(contract_path: str, target_name: str) -> dict:
             }
 
     return {"status": "ok", "message": "Environment is ready. Keys and Target are healthy."}
-
-
-def slugify(text: str) -> str:
-    import re
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    return text.strip("-")[:30]
 
 
 def get_target_slug(target_name: str) -> str:
@@ -168,10 +182,14 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                             f"'{adapter.name}' has no prompts channel")
                     bodies = [f"## Skill: {p}\n\n{adapter.get_prompt(p)}" for p in inject]
                 elif inject_files:
+                    # Filename now labels each chunk (was raw content only,
+                    # no label at all) — 2026-07-24, needed to test whether
+                    # a file's NAME (CLAUDE.md vs AGENTS.md), independent of
+                    # its content, changes model compliance.
                     bodies = []
                     for p in inject_files:
                         with open(p, encoding="utf-8") as fh:
-                            bodies.append(fh.read())
+                            bodies.append(f"## {os.path.basename(p)}\n\n{fh.read()}")
                 if inject or inject_files:
                     system_preamble = (
                         "The following skill guidance applies to this task.\n\n"
@@ -181,7 +199,47 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                 cell_hooks = build_hooks(flags.get("hooks"))
 
                 try:
-                    if adapter.roles():
+                    # contract["driver"] is REQUIRED by load_contract() but was
+                    # never actually consulted here — the dispatch silently
+                    # ignored it and inferred from adapter.roles() alone, so a
+                    # contract declaring 'driver: monolith' had no effect.
+                    # Fixed 2026-07-23 (caught after routing around this bug
+                    # with a one-off script instead of fixing it — see
+                    # specimen log). Fail fast on an unrecognized value rather
+                    # than silently falling back.
+                    #
+                    # 'sbd_orchestrator' (was 'orchestrator', renamed
+                    # 2026-07-24 to disambiguate from 'bauplan_orchestrator'
+                    # now that a second orchestrator driver exists) is
+                    # SBD-only (Orchestrator.run() hardcodes SBD's role
+                    # names, verified by reading it directly);
+                    # 'bauplan_orchestrator' is the parallel driver for
+                    # BauplanAdapter's actual role vocabulary
+                    # (data_explorer/branch_developer/auditor).
+                    declared_driver = contract.get("driver")
+                    if declared_driver == "monolith":
+                        pass
+                    elif declared_driver == "sbd_orchestrator":
+                        if not adapter.roles():
+                            raise RuntimeError(
+                                f"contract declares driver: sbd_orchestrator but target "
+                                f"'{adapter.name}' defines no roles() — cannot orchestrate."
+                            )
+                    elif declared_driver == "bauplan_orchestrator":
+                        needed = {"branch_developer", "auditor"}
+                        missing = needed - set(adapter.roles().keys())
+                        if missing:
+                            raise RuntimeError(
+                                f"contract declares driver: bauplan_orchestrator but "
+                                f"target '{adapter.name}' is missing role(s) {missing}."
+                            )
+                    else:
+                        raise RuntimeError(
+                            f"contract 'driver' must be 'monolith', 'sbd_orchestrator', or "
+                            f"'bauplan_orchestrator', got {declared_driver!r}"
+                        )
+
+                    if declared_driver == "sbd_orchestrator":
                         driver = Orchestrator(
                             adapter=adapter,
                             goal=contract["goal"],
@@ -189,7 +247,15 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                             poll_budget_seconds=float(contract.get("poll_budget_seconds", 180)),
                             runs_dir=runs_dir
                         )
-                        architecture = "orchestrator"
+                        architecture = "sbd_orchestrator"
+                    elif declared_driver == "bauplan_orchestrator":
+                        driver = BauplanOrchestrator(
+                            adapter=adapter,
+                            goal=contract["goal"],
+                            model=model,
+                            runs_dir=runs_dir,
+                        )
+                        architecture = "bauplan_orchestrator"
                     else:
                         driver = MonolithDriver(
                             adapter=adapter,
@@ -197,7 +263,8 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                             model=model,
                             runs_dir=runs_dir,
                             system_preamble=system_preamble,
-                            hooks=cell_hooks
+                            hooks=cell_hooks,
+                            max_turns=int(contract.get("max_turns", 20)),
                         )
                         architecture = "monolith"
 

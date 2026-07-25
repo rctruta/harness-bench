@@ -1,0 +1,41 @@
+# Filename-label test: is Haiku's success in the skills_full cell about the
+# CONTENT (a real, correct Bauplan tutorial) or about the file being NAMED
+# CLAUDE.md specifically? Byte-identical content, injected under the label
+# "AGENTS.md" instead of "CLAUDE.md" (see api.py inject_files fix,
+# 2026-07-24 — filenames were previously invisible to the model entirely).
+#
+# Scoped to Gemini + GPT-4o-mini only, per Ramona's request — Haiku/Claude
+# is the one already tested (skills_full cell, contracts/bauplan_poc_skills_full.yaml).
+
+driver: monolith
+expect_mode: real
+replications: 1
+
+models:
+  - gemini/gemini-2.5-flash
+  - gpt-4o-mini
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-b' (not main — you do not have permission to merge into
+  main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_agents_md_label:
+    description: "Same CLAUDE.md content, labeled AGENTS.md instead — filename effect isolated from content effect."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/AGENTS.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"

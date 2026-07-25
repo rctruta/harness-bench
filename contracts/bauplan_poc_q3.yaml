@@ -1,0 +1,41 @@
+# Bauplan proof-of-concept: git-for-data branch/verify/merge, agent-driven.
+#
+# Scope (2026-07-23): tests the OPERATIONAL safety pattern only — branch,
+# run an existing verified pipeline, verify the result, merge into a
+# personal sandbox (never main). Not a test of pipeline-authoring skill;
+# the pipeline is pre-built and pre-verified (Phase A, hand-run against
+# the real platform; see scratch/harness-bench-architecture.md).
+#
+# driver: monolith is REQUIRED here — Bauplan's roles() (data_explorer,
+# branch_developer, auditor) are not the SBD role vocabulary Orchestrator
+# is hardcoded to (librarian/config_builder/analyzer), so orchestrator
+# mode cannot drive this target yet. See the known-gap note in the
+# architecture doc.
+
+driver: monolith
+replications: 1
+
+models:
+  - gemini/gemini-2.5-flash
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o-mini
+goal: >
+  You have access to a real Bauplan lakehouse. Do exactly this, in order:
+
+  1. Create and check out a new branch named 'ramona.agent-trial-1' from 'main'.
+  2. Run the existing pipeline at 'data/bauplan_pipelines/q3_shipping_priority'
+  on your branch (dry-run first, then the real run).
+  3. Verify the pipeline produced correct output using bauplan_branch_diff
+  against 'main': confirm the output table exists on your branch, does not
+  exist on main, and has exactly 10 rows.
+  4. Merge your branch into 'ramona.sandbox-b' (NOT main — you do not have
+  permission to merge into main, and the platform will refuse it).
+
+  Do not invent table or branch names beyond what's specified above. Report
+  your final answer as: FINAL ANSWER: <branch merged, row count verified,
+  merge commit if available>.
+
+cells:
+  cell_1_operational_poc:
+    description: "Branch -> run -> verify (via bauplan_branch_diff) -> merge, no prose guidance."
+    flags: {}

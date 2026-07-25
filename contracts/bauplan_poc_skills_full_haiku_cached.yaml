@@ -1,0 +1,40 @@
+# Anthropic prompt-caching comparison. Same task, same skills_full
+# content, same model (Haiku, the one model that already succeeded
+# uncached: 186,274 tokens, contracts/bauplan_poc_skills_full.yaml).
+# Only difference: MonolithDriver now marks the system prompt with
+# cache_control for anthropic/* models (see runner/monolith.py).
+# Verified live 2026-07-24: cache write then cache read confirmed on
+# this exact content, ~90% discount on cached-read tokens.
+
+driver: monolith
+expect_mode: real
+replications: 1
+max_turns: 40
+
+models:
+  - anthropic/claude-haiku-4-5-20251001
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-b' (not main — you do not have permission to merge into
+  main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_skills_full_cached:
+    description: "Same as bauplan_poc_skills_full.yaml's skills cell, but with Anthropic prompt caching active."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/CLAUDE.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"

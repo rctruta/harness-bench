@@ -8,6 +8,7 @@ import os
 from typing import Dict, Any
 
 from harnessbench.adapter import TargetAdapter
+from harnessbench.trace_utils import collect_tool_events, detect_unrecovered_tool_errors
 
 
 def _specialist_tokens(run_id: str, runs_dir: str) -> int:
@@ -38,8 +39,9 @@ def extract_generic_markers(path: str) -> Dict[str, Any]:
         "model": None, "flags": {}, "composition": None,
         "outcome": None, "turns": 0, "tokens": 0,
         "first_tool": None,
+        "execution_modes": [],
     }
-    
+
     for e in events:
         ev = e["event"]
         if ev == "run_start":
@@ -66,6 +68,15 @@ def extract_generic_markers(path: str) -> Dict[str, Any]:
             sub = e.get("sub_run_id")
             if sub:
                 markers["tokens"] += _specialist_tokens(sub, os.path.dirname(path))
+
+    # Shared with any adapter's grader (see trace_utils.py) — one traversal
+    # of this trace + its delegated sub-runs, not reimplemented per caller.
+    _, markers["execution_modes"] = collect_tool_events(path)
+
+    # Specimen SBD-12: a tool errored, was never retried, and the run still
+    # reported success. Adapter-agnostic — applies to every trace, not just
+    # Bauplan's. Non-empty means "check this before trusting the grade."
+    markers["unrecovered_tool_errors"] = detect_unrecovered_tool_errors(path)
 
     return markers
 

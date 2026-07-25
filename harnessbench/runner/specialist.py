@@ -246,7 +246,8 @@ def run_specialist(adapter: TargetAdapter, role: SpecialistRole, brief: str, mod
             if not error_reason:
                 succeeded_tools.add(tc.function.name)
             trace.tool_result(turn=turn, tool_call_id=tc.id, name=tc.function.name,
-                              result=result_str, error_reason=error_reason)
+                              result=result_str, error_reason=error_reason,
+                              mode=getattr(adapter, "mode", None))
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc.id,

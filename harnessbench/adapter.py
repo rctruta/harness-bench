@@ -50,10 +50,11 @@ class TargetAdapter(Protocol):
         ...
 
     # --- GRADER: ground-truth grading (optional) ---
-    def grader(self) -> Optional[Callable[[dict], dict]]:
-        """Given a run's trace, return a grade verdict against the
-        target's ground truth. None where no ground truth exists (then
-        the report carries process markers only)."""
+    def grader(self) -> Optional[Callable[[str], dict]]:
+        """Given a run's trace file PATH (grade.py passes a path, not a
+        dict — see the SBD reference adapter), return a grade verdict
+        against the target's ground truth. None where no ground truth
+        exists (then the report carries process markers only)."""
         ...
 
     # --- MARKERS: target-specific behavioral signals (optional) ---
