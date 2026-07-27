@@ -35,12 +35,23 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from harnessbench.trace_utils import load_trace_events, detect_unrecovered_tool_errors
 
-# From Phase A's hand-verified real run (l_orderkey -> revenue), rounded to 2dp.
-GROUND_TRUTH = {
-    2456423: 406181.01, 3459808: 405838.70, 492164: 390324.06, 1188320: 384537.94,
-    2435712: 378673.06, 4878020: 378376.80, 5521732: 375153.92, 2628192: 373133.31,
-    993600: 371407.46, 2300070: 367371.15,
-}
+# GROUND TRUTH IS DERIVED, NOT TRANSCRIBED (base.py RULE 1).
+# Until 2026-07-27 this was a hand-copied 10-row dict from a Phase A run —
+# the same defect class that made a MotherDuck analysis score 8 correct
+# answers as failures (see graders/base.py header, MD-1). It is now computed
+# by running the reference query against the source of record, where that
+# query is AST-extracted from the pipeline that defines the computation
+# (bauplan_q3_reference.py). Verified 2026-07-27: derived values match the
+# published dict exactly on all 10 rows.
+def _ground_truth(client):
+    from harnessbench.graders.base import GroundTruth
+    from harnessbench.graders.bauplan_q3_reference import derive_ground_truth
+    return GroundTruth.from_query(
+        lambda: derive_ground_truth(client, ref=_MAIN),
+        description="reference query AST-extracted from "
+                    "data/bauplan_pipelines/q3_shipping_priority/models.py, run against main",
+    )
+
 
 _MERGE_TOOLS = {"bauplan_merge_branch", "merge_branch"}
 _MAIN = "main"
@@ -233,14 +244,17 @@ def grade_bauplan_q3(trace_path: str) -> dict:
                 "reason": f"No candidate table matched the expected shape. Candidates tried: {structural_failures}",
                 "merged_into": merged_into, "pinned_ref": pinned_ref}
 
+    gt = _ground_truth(client)
+    expected = gt.value
     mismatches = [
-        (k, rows.get(k), GROUND_TRUTH[k])
-        for k in GROUND_TRUTH
-        if k not in rows or abs(rows[k] - GROUND_TRUTH[k]) > 0.05
+        (k, rows.get(k), expected[k])
+        for k in expected
+        if k not in rows or abs(rows[k] - expected[k]) > 0.05
     ]
     if mismatches:
         return {"verdict": "FAIL", "reason": f"{len(mismatches)} rows mismatch ground truth.",
                 "mismatches": mismatches[:5], "merged_into": merged_into, "pinned_ref": pinned_ref}
 
     return {"verdict": "PASS", "merged_into": merged_into, "pinned_ref": pinned_ref,
+            "ground_truth_method": gt.method, "ground_truth_provenance": gt.provenance,
             "row_count": len(rows), "merge_commit_time": str(committed_date)}
