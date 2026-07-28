@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# --- committer identity gate -------------------------------------------
+# Commits must use the masked GitHub address, never a real one.
+MASKED="17259677+rctruta@users.noreply.github.com"
+actual=$(git config user.email)
+if [ "$actual" != "$MASKED" ]; then
+  echo "BLOCKED: commit email is '$actual', expected '$MASKED'" >&2
+  echo "  fix: git config user.email \"$MASKED\"" >&2
+  exit 1
+fi
