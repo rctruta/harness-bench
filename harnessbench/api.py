@@ -279,6 +279,48 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                 except Exception as e:
                     outcomes[f"{model}_{cell}_{rep}"] = f"exception: {e}"
 
+    # Completion marker. meta.json is written BEFORE execution (above), so on
+    # its own it cannot distinguish "ran and produced nothing" from "died on
+    # startup" — several study_ids in runs/ have executions with zero traces
+    # and nothing recorded why. This file is written only after the matrix has
+    # finished, so downstream consumers can ingest completed runs and ignore
+    # abandoned ones.
+    #
+    # Deliberately NOT a callback into an analytics system: the harness must
+    # not depend on the warehouse. A dbt failure should never be able to kill
+    # a paid run. Consumers pull; the harness only records.
+    try:
+        trace_count = len([f for f in os.listdir(runs_dir)
+                           if f.endswith(".jsonl")])
+        completion = {
+            "study_id": study_id,
+            "status": "complete",
+            "ended_at": datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "trace_count": trace_count,
+            "expected_traces": len(models) * len(cells) * reps,
+            "outcomes": outcomes,
+        }
+        with open(os.path.join(runs_dir, "run_complete.json"), "w") as f:
+            json.dump(completion, f, indent=2)
+    except Exception as e:  # never let bookkeeping break a completed run
+        print(f"[warn] could not write run_complete.json: {e}")
+
+    # Optional post-run command, opt-in via env var. Receives the run dir as
+    # argv[1]. Failures are reported and swallowed — the run already
+    # succeeded, and a downstream ingest problem must not be reported as a
+    # harness failure.
+    post = os.environ.get("HARNESSBENCH_POST_RUN")
+    if post:
+        import subprocess
+        try:
+            r = subprocess.run([post, runs_dir], capture_output=True,
+                               text=True, timeout=300)
+            if r.returncode != 0:
+                print(f"[warn] post-run hook exited {r.returncode}: "
+                      f"{(r.stderr or '').strip()[:200]}")
+        except Exception as e:
+            print(f"[warn] post-run hook failed: {e}")
+
     return {
         "status": "complete",
         "study_id": study_id,
