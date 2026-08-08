@@ -59,6 +59,86 @@ def _usage_from_response(response) -> Optional[Dict]:
     }
 
 
+def _response_metadata(response) -> Dict:
+    """Provider metadata beyond token counts.
+
+    Token counts alone answer "how big was this call" but not "what actually
+    ran, did it finish, and what did it cost". Each field below closes a gap
+    that showed up while analysing the existing corpus:
+
+      model_served      The model that ANSWERED, which is not the model you
+                        asked for. Request 'gpt-4o' and OpenAI serves
+                        'gpt-4o-2024-08-06'. Without this, a corpus spanning
+                        months silently mixes model snapshots under one label
+                        and every cross-model comparison is suspect.
+      finish_reason     'length' means the response was TRUNCATED — a silent
+                        failure that looks like a short answer. Currently
+                        indistinguishable from a model that simply stopped.
+      response_cost     Actual dollars, computed by litellm from its pricing
+                        table. The corpus can currently only say "tokens",
+                        which is not comparable across vendors — a cost claim
+                        needs this or it is a token claim wearing a suit.
+      cached_tokens     Cache hits change cost by an order of magnitude and
+                        make two identical-token runs cost differently.
+      system_fingerprint  Provider backend config version. Two runs with the
+                        same model and different fingerprints are not the
+                        same experiment.
+      provider / request_id  Routing and support forensics.
+
+    Every field is optional and best-effort: providers differ in what they
+    return, and a missing field must read as absent rather than zero.
+    """
+    meta: Dict = {}
+
+    for attr, key in (("model", "model_served"),
+                      ("id", "request_id"),
+                      ("created", "created_at_epoch"),
+                      ("system_fingerprint", "system_fingerprint")):
+        val = getattr(response, attr, None)
+        if val is not None:
+            meta[key] = val
+
+    choices = getattr(response, "choices", None) or []
+    if choices:
+        fr = getattr(choices[0], "finish_reason", None)
+        if fr is not None:
+            meta["finish_reason"] = fr
+            # Called out explicitly because a truncated answer is a real
+            # failure that otherwise reads as a terse one.
+            meta["was_truncated"] = (fr == "length")
+
+    usage = getattr(response, "usage", None)
+    if usage is not None:
+        details = getattr(usage, "prompt_tokens_details", None)
+        cached = getattr(details, "cached_tokens", None) if details else None
+        if cached is not None:
+            meta["cached_prompt_tokens"] = cached
+        reasoning = getattr(getattr(usage, "completion_tokens_details", None),
+                            "reasoning_tokens", None)
+        if reasoning is not None:
+            meta["reasoning_tokens"] = reasoning
+
+    hidden = getattr(response, "_hidden_params", None) or {}
+    if isinstance(hidden, dict):
+        for k in ("custom_llm_provider", "region_name", "response_cost"):
+            if hidden.get(k) is not None:
+                meta[k] = hidden[k]
+
+    # litellm computes cost from its pricing table when the provider did not
+    # return one. Wrapped: an unknown model raises, and a missing cost must
+    # never break a run that already produced an answer.
+    if "response_cost" not in meta:
+        try:
+            import litellm
+            cost = litellm.completion_cost(completion_response=response)
+            if cost is not None:
+                meta["response_cost"] = cost
+        except Exception:
+            pass
+
+    return meta
+
+
 class AgentTrace:
     """One agent run = one JSONL file. Each method emits one event line."""
 
@@ -115,6 +195,10 @@ class AgentTrace:
             "empty_content": not (content or "").strip(),
             "recovered_call_reason": recovered_call_reason,
             "usage": _usage_from_response(response) if response is not None else None,
+            # Provider metadata: which model actually served, whether the
+            # response was truncated, real cost, cache hits. See
+            # _response_metadata for why each one is here.
+            "response_meta": _response_metadata(response) if response is not None else None,
         })
 
     def tool_call(self, turn: int, tool_call_id: str, name: str, arguments: Any) -> None:
