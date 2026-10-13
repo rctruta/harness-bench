@@ -1,6 +1,8 @@
 import sys
 import os
-sys.path.insert(0, "/Users/ramona/Projects/harness-bench")
+# the repository root, found from this file rather than from one machine
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 
 import pytest
 from harnessbench.registry import load_adapter

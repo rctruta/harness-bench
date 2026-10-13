@@ -1,6 +1,8 @@
 import sys
 import os
-sys.path.insert(0, "/Users/ramona/Projects/harness-bench")
+# the repository root, found from this file rather than from one machine
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO_ROOT)
 
 import pytest
 from harnessbench.api import check_environment, run_benchmark
@@ -9,7 +11,7 @@ from harnessbench.grade import grade_study
 from harnessbench.report import generate_report
 
 def test_bauplan_benchmark_run():
-    contract_path = "/Users/ramona/Projects/harness-bench/contracts/bauplan_study.yaml"
+    contract_path = os.path.join(REPO_ROOT, "contracts", "bauplan_study.yaml")
     target_name = "bauplan_lakehouse"
 
     # Pre-flight check

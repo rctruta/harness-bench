@@ -9,3 +9,15 @@ if [ "$actual" != "$MASKED" ]; then
   echo "  fix: git config user.email \"$MASKED\"" >&2
   exit 1
 fi
+
+# --- gates from ai-agent-utils -----------------------------------------
+# Local policy, bypassable by design. GATES.md in ai-agent-utils says why each
+# exists. Findings that predate adoption live in .gates/baseline/.
+ROOT="$(git rev-parse --show-toplevel)"
+if [ -d "$ROOT/.gates" ]; then
+  PY="$(command -v python3 || true)"
+  if [ -n "$PY" ]; then
+    "$PY" "$ROOT/.gates/no_local_paths.py" --check || exit 1
+    "$PY" "$ROOT/.gates/no_hardcoding.py" --check || exit 1
+  fi
+fi

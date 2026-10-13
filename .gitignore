@@ -24,3 +24,4 @@ agent_runs/
 # WIP
 scratch/
 data/
+.gates/ledger.jsonl
