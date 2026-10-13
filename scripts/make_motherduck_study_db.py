@@ -64,7 +64,11 @@ for task, q in GT_QUERIES.items():
 import json as _json
 _gt_path = os.path.join(os.path.dirname(DEST), "motherduck_study_ground_truth.json")
 with open(_gt_path, "w") as _f:
-    _json.dump(ground_truth, _f, indent=2)
+    # Declare the generator in the artifact. This file is output: the queries
+    # above are the definition, and a reader (or a gate) that finds the same
+    # text in both places needs to know which one is the source.
+    _json.dump({"generated_by": "scripts/make_motherduck_study_db.py", **ground_truth},
+               _f, indent=2)
 print("ground truth written:", _gt_path)
 
 con.close()
