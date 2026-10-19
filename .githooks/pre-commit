@@ -19,5 +19,14 @@ if [ -d "$ROOT/.gates" ]; then
   if [ -n "$PY" ]; then
     "$PY" "$ROOT/.gates/no_local_paths.py" --check || exit 1
     "$PY" "$ROOT/.gates/no_hardcoding.py" --check || exit 1
+    # Adopted 2026-10-19 at registry version 5.
+    "$PY" "$ROOT/.gates/no_orphans.py" --check || {
+      echo "  -> A module is imported only by its own test. A passing test" >&2
+      echo "     there certifies a feature that never runs." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/check_voice.py" --check || exit 1
+    # check_wheel.py is installed but NOT wired: it gates a distribution, and
+    # harnessbench publishes none (404 on PyPI). Wire it into a release
+    # workflow if that changes -- a gate on something that never happens is
+    # cost without cover.
   fi
 fi
