@@ -1,0 +1,49 @@
+# Matched architecture comparison, monolith side. Same goal, same real
+# ground-truth grading, same models as contracts/bauplan_matched_orchestrator.yaml —
+# only the driver differs. Built 2026-07-24 after the "only Haiku
+# succeeded" result turned out to compare a capable Anthropic tier against
+# CHEAP Gemini/OpenAI tiers (flash / 4o-mini), not a fair capability match.
+# Capable-tier equivalents used here: claude-haiku-4-5 (Anthropic's current
+# smallest tier, but not cheap-tier — no smaller model exists in the
+# current lineup), gemini-2.5-pro (already has one confirmed real PASS,
+# vs. flash's zero), gpt-4o (the full-size model — 4o-mini was the cheap
+# tier previously tried and never succeeded).
+#
+# Goal text and skills_full cell reused verbatim from
+# contracts/bauplan_poc_skills_full.yaml (already real, already proven to
+# produce a real PASS for Haiku) — this is a rerun with the model roster
+# swapped to capable tier and replications raised to 3.
+
+driver: monolith
+expect_mode: real
+replications: 3
+
+models:
+  - gemini/gemini-2.5-pro
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-matched' (not main — you do not have permission to merge
+  into main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_skills_full:
+    description: "CLAUDE.md + bauplan-data-pipeline SKILL.md injected wholesale (as Claude Code ships it)."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/CLAUDE.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"

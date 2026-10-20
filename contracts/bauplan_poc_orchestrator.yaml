@@ -1,0 +1,23 @@
+# Bauplan state-machine driver test — first real use of BauplanOrchestrator
+# (data_explorer -> branch_developer -> auditor), built 2026-07-24. All prior
+# Bauplan runs used MonolithDriver as an unplanned workaround (Orchestrator
+# is SBD-only). This is the "noble purpose" comparison point.
+
+driver: bauplan_orchestrator
+replications: 1
+
+models:
+  - anthropic/claude-haiku-4-5-20251001
+
+goal: >
+  Create a feature branch `ramona.orch-tpch-q3-v3`, inspect the TPC-H tables under
+  the `tpch_1` namespace (tpch_1.customer, tpch_1.orders, tpch_1.lineitem),
+  write and run a pipeline computing shipping-priority revenue (Q3-style: join
+  orders/lineitem/customer, filter on order date and ship date, group by
+  orderkey, sort by revenue desc), verify the result, and merge it into the
+  sandbox target `ramona.sandbox-orch-q3-v3`. Never touch main.
+
+cells:
+  cell_1_state_machine:
+    description: "State-machine specialist roles, zero prose skills."
+    flags: {}

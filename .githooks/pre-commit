@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# --- committer identity gate -------------------------------------------
+# Commits must use the masked GitHub address, never a real one.
+MASKED="17259677+rctruta@users.noreply.github.com"
+actual=$(git config user.email)
+if [ "$actual" != "$MASKED" ]; then
+  echo "BLOCKED: commit email is '$actual', expected '$MASKED'" >&2
+  echo "  fix: git config user.email \"$MASKED\"" >&2
+  exit 1
+fi
+
+# --- gates from ai-agent-utils -----------------------------------------
+# Local policy, bypassable by design. GATES.md in ai-agent-utils says why each
+# exists. Findings that predate adoption live in .gates/baseline/.
+ROOT="$(git rev-parse --show-toplevel)"
+if [ -d "$ROOT/.gates" ]; then
+  PY="$(command -v python3 || true)"
+  if [ -n "$PY" ]; then
+    "$PY" "$ROOT/.gates/no_local_paths.py" --check || exit 1
+    "$PY" "$ROOT/.gates/no_hardcoding.py" --check || exit 1
+    # Adopted 2026-10-19 at registry version 5.
+    "$PY" "$ROOT/.gates/scratch_external.py" --check || {
+      echo "  -> A local notes folder is reachable by git, or a note is tracked." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/no_orphans.py" --check || {
+      echo "  -> A module is imported only by its own test. A passing test" >&2
+      echo "     there certifies a feature that never runs." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/check_voice.py" --check || exit 1
+    # check_wheel.py is installed but NOT wired: it gates a distribution, and
+    # harnessbench publishes none (404 on PyPI). Wire it into a release
+    # workflow if that changes -- a gate on something that never happens is
+    # cost without cover.
+  fi
+fi

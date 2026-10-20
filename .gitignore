@@ -23,3 +23,8 @@ agent_runs/
 
 # WIP
 scratch/
+data/
+.gates/ledger.jsonl
+
+# Local notes: a symlink outside the worktree. See .gates/scratch_external.py
+scratch

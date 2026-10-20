@@ -1,6 +1,7 @@
 # Core Harness Bench requirements
 litellm
 PyYAML
+bauplan
 
 # Transitive requirements for the SBD adapter
 httpx

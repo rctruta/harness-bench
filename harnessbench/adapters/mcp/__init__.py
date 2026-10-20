@@ -18,11 +18,13 @@ from harnessbench.adapter import TargetAdapter, SpecialistRole, TerminalPolicy
 class McpAdapter(TargetAdapter):
     """Generic MCP adapter using a background asyncio event loop."""
 
-    def __init__(self, command: Optional[List[str]] = None, url: Optional[str] = None):
+    def __init__(self, command: Optional[List[str]] = None, url: Optional[str] = None,
+                 headers: Optional[Dict[str, str]] = None):
         if bool(command) == bool(url):
             raise ValueError("McpAdapter needs exactly one of command (stdio) or url (http)")
         self._command = command
         self._url = url
+        self._headers = headers
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
@@ -47,7 +49,7 @@ class McpAdapter(TargetAdapter):
             # We must hold the context managers open indefinitely.
             # To do this safely in a background thread, we enter them manually.
             if self._url:
-                self._transport_cm = streamablehttp_client(self._url)
+                self._transport_cm = streamablehttp_client(self._url, headers=self._headers)
                 self._read_stream, self._write_stream, _ = await self._transport_cm.__aenter__()
             else:
                 server_params = StdioServerParameters(

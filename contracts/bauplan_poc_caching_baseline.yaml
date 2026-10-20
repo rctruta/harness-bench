@@ -1,0 +1,40 @@
+# Baseline (UNCACHED) for the prompt-caching comparison. Same task,
+# same skills_full condition (heaviest static prose — where caching
+# should matter most), Gemini Flash + Gemini Pro, extended turn budget.
+# After this runs, caching gets implemented and this exact contract
+# gets rerun (or an identical twin with cache_control added) for a
+# clean before/after comparison. See scratch/harness-bench-architecture.md.
+
+driver: monolith
+expect_mode: real
+replications: 1
+max_turns: 40
+
+models:
+  - gemini/gemini-2.5-flash
+  - gemini/gemini-2.5-pro
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-b' (not main — you do not have permission to merge into
+  main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_skills_full:
+    description: "CLAUDE.md + bauplan-data-pipeline SKILL.md injected wholesale (as Claude Code ships it). UNCACHED baseline."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/CLAUDE.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"

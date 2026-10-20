@@ -8,6 +8,8 @@ import re
 from statistics import mean
 from typing import Dict, Any
 
+from harnessbench.trace_utils import load_trace_events
+
 # Assuming SBD results are relative to the execution root, or we can use AGENT_STUDY_DIR
 SBD_RESULTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../sql-benchmarks-dagster/sql_benchmarks/experiments/results"))
 
@@ -74,11 +76,10 @@ def _close(claim, truth, tol):
     return truth and abs(claim - truth) / abs(truth) <= tol
 
 
-def extract_answer_and_exp(path: str):
-    answer = None
-    exp_ids = []
-    for line in open(path, encoding="utf-8"):
-        e = json.loads(line)
+def _scan_events_for_answer(events: list, answer: Any, exp_ids: list) -> Any:
+    """Apply the answer/exp_id extraction rules to one trace's events.
+    Returns the (possibly updated) answer; exp_ids is mutated in place."""
+    for e in events:
         if e["event"] == "final_answer":
             answer = e.get("content") or answer
         elif e["event"] == "tool_call":
@@ -92,6 +93,33 @@ def extract_answer_and_exp(path: str):
                 for tok in re.findall(r"\b[0-9a-f]{8}\b", json.dumps(arg)):
                     if os.path.isdir(os.path.join(SBD_RESULTS_DIR, tok)):
                         exp_ids.append(tok)
+    return answer
+
+
+def extract_answer_and_exp(path: str):
+    """Reads the trace at `path` AND any delegated specialist sub-runs in
+    the same directory (state-machine orchestrator driver delegates to
+    CONFIG_BUILDER/ANALYZER/LIBRARIAN; the FINAL ANSWER and the
+    experiment_id-bearing tool_call live in the sub-run's own trace file,
+    not the top-level orchestrator trace — confirmed against a real,
+    successful run, 2026-07-12). Without following delegates, every
+    orchestrated run graded PASS/FAIL by a human would score NO-ANSWER here.
+    """
+    run_dir = os.path.dirname(path)
+    answer = None
+    exp_ids: list = []
+
+    def _walk(trace_path: str) -> None:
+        nonlocal answer
+        events = load_trace_events(trace_path)
+        answer = _scan_events_for_answer(events, answer, exp_ids)
+        for e in events:
+            if e["event"] == "delegate":
+                sub_id = e.get("sub_run_id")
+                if sub_id:
+                    _walk(os.path.join(run_dir, f"{sub_id}.jsonl"))
+
+    _walk(path)
     exp_id = max(set(exp_ids), key=exp_ids.count) if exp_ids else None
     return answer, exp_id
 

@@ -122,3 +122,32 @@ def test_api_directory_structure(tmp_path, monkeypatch):
     assert parts[-1] == "test_study"
     assert parts[-2] == "20260712_120000_abcd1234"
     assert parts[-3] == "mcp-server-motherduck"
+
+
+def test_hooks_gate_refusal_and_allow():
+    from harnessbench.hooks import build_hooks, HookState
+    hooks = build_hooks([
+        {"require_before": {"tool": "submit", "requires": "get_template"}},
+        {"max_calls": {"tool": "list_suites", "limit": 1}},
+    ])
+    state = HookState()
+
+    # submit before get_template -> refused by the gate
+    refusals = [h("submit", {}, state) for h in hooks]
+    assert any(r and "require_before" in r for r in refusals)
+
+    # after get_template succeeds, submit passes every hook
+    state.record_success("get_template")
+    assert all(h("submit", {}, state) is None for h in hooks)
+
+    # second list_suites call is refused by max_calls
+    assert all(h("list_suites", {}, state) is None for h in hooks)
+    state.record_call("list_suites")
+    assert any(h("list_suites", {}, state) for h in hooks)
+
+
+def test_build_hooks_rejects_unknown_kind():
+    from harnessbench.hooks import build_hooks
+    import pytest
+    with pytest.raises(ValueError):
+        build_hooks([{"telepathy": {}}])

@@ -31,6 +31,10 @@ def main():
     parser_report = subparsers.add_parser("report", help="Generate a markdown report for a graded study")
     parser_report.add_argument("study_dir", help="Path to the directory containing agent traces")
     parser_report.add_argument("--target", required=True, help="Target adapter (e.g. sbd or mcp:stdio:cmd)")
+    parser_report.add_argument("--allow-mock", action="store_true",
+                               help="Acknowledge and render a report built from simulated (mock) "
+                                    "tool results. Without this flag, report generation refuses "
+                                    "if any trace ran in mock mode.")
 
     args = parser.parse_args()
 
@@ -75,10 +79,14 @@ def main():
     elif args.command == "report":
         from harnessbench.registry import load_adapter
         from harnessbench.grade import grade_study
-        from harnessbench.report import generate_report
+        from harnessbench.report import generate_report, MockTraceError
         adapter = load_adapter(args.target)
         results = grade_study(args.study_dir, adapter)
-        report = generate_report(results)
+        try:
+            report = generate_report(results, allow_mock=args.allow_mock)
+        except MockTraceError as e:
+            print(f"❌ REFUSED: {e}")
+            sys.exit(1)
         print("\n" + report)
 
 if __name__ == "__main__":
