@@ -20,6 +20,14 @@ if [ -d "$ROOT/.gates" ]; then
     "$PY" "$ROOT/.gates/no_local_paths.py" --check || exit 1
     "$PY" "$ROOT/.gates/no_hardcoding.py" --check || exit 1
     # Adopted 2026-10-19 at registry version 5.
+    "$PY" "$ROOT/.gates/no_private_marker.py" --check || {
+      echo "  -> A tracked file declares itself private." >&2; exit 1; }
+    # The floor: every other gate reads files as text, so a SyntaxError
+    # once passed all of them.
+    "$PY" "$ROOT/.gates/check_compiles.py" --check || {
+      echo "  -> A tracked python file does not parse." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/check_publish_contract.py" --check || {
+      echo "  -> A publishing surface is missing required information." >&2; exit 1; }
     "$PY" "$ROOT/.gates/scratch_external.py" --check || {
       echo "  -> A local notes folder is reachable by git, or a note is tracked." >&2; exit 1; }
     "$PY" "$ROOT/.gates/no_orphans.py" --check || {

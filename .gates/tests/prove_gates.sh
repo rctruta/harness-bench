@@ -411,6 +411,310 @@ if have scratch_external.py; then
   rm -rf "$SP" "$SX"
 fi
 
+# ------------------------------------------------------- private marker -----
+# Born 2026-10-19 from the audit that followed scratch_external. The specimen:
+# sql-benchmarks-dagster/scratch/reducing_agent_search_scope.md, whose third
+# line reads "Local draft. Not for the public repo.", was on origin/main of a
+# PUBLIC repository from 2026-07-04 to 2026-07-06, across thirteen commits.
+# rctruta.github.io already had this check in tools/check_private.py, but it
+# lived in one repository and nothing carried it anywhere else.
+if have no_private_marker.py; then
+  MP="$(mktemp -d)"
+  mkdir -p "$MP/.gates" "$MP/docs"
+  cp "$G/no_private_marker.py" "$MP/.gates/"
+  (cd "$MP" && git init -q && git commit -q --allow-empty -m init) >/dev/null 2>&1
+
+  # 1. Clean tree.
+  printf '# Readme\n\nOrdinary content.\n' > "$MP/docs/readme.md"
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    ok "no_private_marker quiet on an ordinary tracked file"
+  else
+    bad "no_private_marker fired on an ordinary tracked file"
+  fi
+
+  # 2. The real specimen's own words, in a file outside any notes folder --
+  #    which is the point: scratch_external covers notes by location, this
+  #    covers a declaration anywhere in the tree.
+  printf '# Methodology note\n\n*2026-07-04. Local draft. Not for the public repo.*\n' \
+    > "$MP/docs/draft.md"
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    bad "no_private_marker MISSED a header declaring the file private"
+  else
+    ok "no_private_marker refuses a file whose header declares it private"
+  fi
+  (cd "$MP" && git rm -q --cached docs/draft.md) >/dev/null 2>&1
+  rm -f "$MP/docs/draft.md"
+
+  # 3. A declaration in the NAME, with nothing in the header. This is how
+  #    convergence_notes_PRIVATE.md declares itself.
+  printf 'Nothing in here says anything about publication.\n' \
+    > "$MP/docs/convergence_notes_PRIVATE.md"
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    bad "no_private_marker MISSED a filename declaring the file private"
+  else
+    ok "no_private_marker refuses a file whose NAME declares it private"
+  fi
+  (cd "$MP" && git rm -q --cached docs/convergence_notes_PRIVATE.md) >/dev/null 2>&1
+  rm -f "$MP/docs/convergence_notes_PRIVATE.md"
+
+  # 4. The difference from check_private.py, which reads `git diff --cached`
+  #    and so sees a file once, on the way in. A file COMMITTED before this
+  #    gate existed is never staged again, and a staged-only check can never
+  #    tell you what is already out. Same shape as a .gitignore rule.
+  printf '# Old note\n\nPRIVATE: do not commit\n' > "$MP/docs/old.md"
+  (cd "$MP" && git add -A && git commit -q -m "committed before the gate") >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    bad "no_private_marker MISSED an ALREADY-COMMITTED private file"
+  else
+    ok "no_private_marker refuses a private file committed before it existed"
+  fi
+
+  # 5. No baseline, and it must say so rather than quietly reporting -- every
+  #    sibling gate takes --baseline, so a caller will reach for it here.
+  if (cd "$MP" && python3 .gates/no_private_marker.py --baseline) >/dev/null 2>&1; then
+    bad "no_private_marker accepted --baseline; this gate must refuse it"
+  else
+    ok "no_private_marker refuses --baseline"
+  fi
+  [ -f "$MP/.gates/baseline/no_private_marker.txt" ] \
+    && bad "no_private_marker wrote a baseline file" \
+    || ok "no_private_marker wrote no baseline file"
+  (cd "$MP" && git rm -q --cached docs/old.md && git commit -q -m untrack) >/dev/null 2>&1
+  rm -f "$MP/docs/old.md"
+
+  # 6. UNTRACKED is fine. The notes this protects are meant to exist -- just
+  #    not in the index. A gate that fired on them would be unusable.
+  printf 'PRIVATE: do not commit\n' > "$MP/docs/local_note.md"
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    ok "no_private_marker ignores an untracked private file"
+  else
+    bad "no_private_marker fired on an UNTRACKED file, which is allowed"
+  fi
+  rm -f "$MP/docs/local_note.md"
+
+  # 7. The false-positive guard. A declaration is a header; prose discussing
+  #    the marker on page nine is not a declaration. GATES.md and this very
+  #    probe file both quote these phrases, and neither is private.
+  python3 - "$MP/docs/essay.md" <<'PYEOF'
+import sys
+pad = "Ordinary prose about publishing workflows.\n" * 60
+open(sys.argv[1], "w").write(
+    "# An essay about publication rules\n\n" + pad +
+    "\nSome authors write PRIVATE: do not commit at the top of a draft.\n")
+PYEOF
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    ok "no_private_marker does not block on the phrase below the header"
+  else
+    bad "no_private_marker blocked on prose that merely mentions the marker"
+  fi
+
+  # 8. ...but it must SAY SO. The first version read only the first 800 bytes,
+  #    so a declaration at byte 801 produced the word "clean" -- which reads
+  #    exactly like "this file is safe". Not blocking is a judgement; being
+  #    silent is a defect. The window decides what blocks; the whole file is
+  #    still scanned and anything below the window is reported.
+  if (cd "$MP" && python3 .gates/no_private_marker.py) 2>&1 \
+       | grep -q "BELOW the first"; then
+    ok "no_private_marker reports a marker found below the header window"
+  else
+    bad "no_private_marker was SILENT about a marker below the header window"
+  fi
+  if (cd "$MP" && python3 .gates/no_private_marker.py) 2>&1 | grep -q "clean"; then
+    bad "no_private_marker said 'clean' while a marker sat below the window"
+  else
+    ok "no_private_marker does not claim clean when it found a marker below"
+  fi
+  rm -f "$MP/docs/essay.md"
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+
+  # 9. A declaration moved INTO the window must start blocking -- the window
+  #    is the rule, so it has to be the thing that decides.
+  printf 'PRIVATE: do not commit\n\n# Draft\n' > "$MP/docs/moved.md"
+  (cd "$MP" && git add -A) >/dev/null 2>&1
+  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
+    bad "no_private_marker MISSED a declaration on line 1"
+  else
+    ok "no_private_marker blocks once the declaration is in the header"
+  fi
+  rm -rf "$MP"
+fi
+
+# ------------------------------------------------------ publish contract -----
+# Born 2026-10-20 in sql-benchmarks-dagster, from three silent drifts in the
+# artifacts that define a public listing: a manifest naming the previous
+# version, a manifest and ownership token that existed only on an unpushed
+# local branch, and a CITATION.cff three releases stale. The registry being
+# published to checked none of it.
+#
+# Each probe writes its own contract rather than patching the shipped one.
+# Editing the real file with string replacement made these probes fragile and
+# twice reported the gate as broken when the probe was.
+if have check_publish_contract.py; then
+  CP="$(mktemp -d)"
+  mkdir -p "$CP/.gates"
+  cp "$G/check_publish_contract.py" "$CP/.gates/"
+  (cd "$CP" && git init -q && git commit -q --allow-empty -m init) >/dev/null 2>&1
+  CT="$CP/.gates/publish_contract.toml"
+  run_cp() { (cd "$CP" && python3 .gates/check_publish_contract.py --check) ; }
+
+  cat > "$CT" <<'TOMLEOF'
+[version_source]
+path = "pyproject.toml"
+kind = "toml_project_version"
+
+[[surfaces]]
+id = "npm"
+status = "planned"
+trigger = "package.json"
+why = "probe surface"
+TOMLEOF
+
+  # 1. A planned surface whose trigger is absent: nothing to do.
+  if run_cp >/dev/null 2>&1; then
+    ok "publish_contract quiet when no surface's trigger exists"
+  else
+    bad "publish_contract fired on a repository that publishes nothing"
+  fi
+
+  # 2. The trigger demanding its own rules -- the behaviour that is not
+  #    standard practice. Normally the file appears, nobody wrote the rules,
+  #    and nothing says so.
+  printf '{}\n' > "$CP/package.json"
+  if run_cp >/dev/null 2>&1; then
+    bad "publish_contract MISSED a planned surface whose trigger appeared"
+  else
+    ok "publish_contract refuses a planned surface whose trigger appeared"
+  fi
+
+  # 3. A live surface whose defining file is gone -- the server.json incident.
+  rm -f "$CP/package.json"
+  sed -i.bak 's/status = "planned"/status = "live"/' "$CT" && rm -f "$CT.bak"
+  if run_cp >/dev/null 2>&1; then
+    bad "publish_contract MISSED a live surface with no trigger file"
+  else
+    ok "publish_contract refuses a live surface whose trigger is missing"
+  fi
+
+  # 4. ...and quiet once the file it names is there.
+  printf '{}\n' > "$CP/package.json"
+  if run_cp >/dev/null 2>&1; then
+    ok "publish_contract accepts a live surface whose trigger exists"
+  else
+    bad "publish_contract still fired once the live trigger was present"
+  fi
+
+  # 5. Version agreement, which is what started all this.
+  cat > "$CP/pyproject.toml" <<'TOMLEOF'
+[project]
+name = "probe"
+version = "9.9.9"
+TOMLEOF
+  cat >> "$CT" <<'TOMLEOF'
+
+[[surfaces.requires]]
+kind = "json_version_matches_source"
+path = "package.json"
+field = "version"
+TOMLEOF
+  printf '{"version": "1.0.0"}\n' > "$CP/package.json"
+  if run_cp >/dev/null 2>&1; then
+    bad "publish_contract MISSED a version disagreeing with the source"
+  else
+    ok "publish_contract refuses a version that disagrees with the source"
+  fi
+
+  # 6. ...and accepts agreement, so the gate is about agreeing and not about
+  #    always failing.
+  printf '{"version": "9.9.9"}\n' > "$CP/package.json"
+  if run_cp >/dev/null 2>&1; then
+    ok "publish_contract accepts versions that agree"
+  else
+    bad "publish_contract fired on versions that agree"
+  fi
+
+  # 7. A check with no `stages` is itself a finding. A default would be a
+  #    guess about where a check can run, and guessing it made one release
+  #    fail three times.
+  cat >> "$CT" <<'TOMLEOF'
+
+[[surfaces.checks]]
+path = ".gates/check_publish_contract.py"
+TOMLEOF
+  if run_cp 2>&1 | grep -q "declares no"; then
+    ok "publish_contract refuses a check that names no stages"
+  else
+    bad "publish_contract accepted a check with no stages declared"
+  fi
+
+  # 8. An inline empty array that a later block cannot extend is a TOML error
+  #    an editor will hit, so it must be explained rather than traced back.
+  cat > "$CT" <<'TOMLEOF'
+[version_source]
+path = "pyproject.toml"
+kind = "toml_project_version"
+
+[[surfaces]]
+id = "npm"
+status = "planned"
+trigger = "package.json"
+why = "probe surface"
+requires = []
+
+[[surfaces.requires]]
+kind = "file_exists"
+path = "README.md"
+TOMLEOF
+  if run_cp 2>&1 | grep -q "inline"; then
+    ok "publish_contract explains an inline-array TOML conflict"
+  else
+    bad "publish_contract gave no hint for an inline-array TOML conflict"
+  fi
+  rm -rf "$CP"
+fi
+
+# ----------------------------------------------------------- compiles -----
+# Born 2026-10-20 in a freshly bootstrapped project: a commit introduced a
+# SyntaxError -- a comment placed inside a function's parentheses -- and every
+# installed gate passed it, because they all read files as text and none asks
+# Python whether the file is valid Python. A repository with no tests had
+# nothing else between a broken file and a commit.
+if have check_compiles.py; then
+  KP="$(mktemp -d)"
+  mkdir -p "$KP/.gates" "$KP/pkg"
+  cp "$G/check_compiles.py" "$KP/.gates/"
+  (cd "$KP" && git init -q) >/dev/null 2>&1
+
+  printf 'def fine():\n    return 1\n' > "$KP/pkg/good.py"
+  (cd "$KP" && git add -A) >/dev/null 2>&1
+  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
+    ok "check_compiles quiet on a file that parses"
+  else
+    bad "check_compiles fired on a valid file"
+  fi
+
+  printf 'def broken(\n' > "$KP/pkg/bad.py"
+  (cd "$KP" && git add -A) >/dev/null 2>&1
+  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
+    bad "check_compiles MISSED a syntax error"
+  else
+    ok "check_compiles refuses a file that does not parse"
+  fi
+
+  # Untracked is not checked: a scratch file mid-edit must not block a commit
+  # that does not include it.
+  (cd "$KP" && git rm -q --cached pkg/bad.py) >/dev/null 2>&1
+  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
+    ok "check_compiles ignores an untracked broken file"
+  else
+    bad "check_compiles fired on a file git does not track"
+  fi
+  rm -rf "$KP"
+fi
+
 echo
 echo "gates proven: $PASS passed, $FAIL failed, $SKIP not installed"
 [ "$FAIL" -eq 0 ] || exit 1
