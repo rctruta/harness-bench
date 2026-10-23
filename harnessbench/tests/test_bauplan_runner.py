@@ -53,6 +53,13 @@ def test_preflight_and_matrix_shape():
     the old test made before it started spending.
     """
     chk = check_environment(CONTRACT, TARGET)
+    if chk["status"] != "ok" and "inject_files that do not exist" in chk.get(
+            "message", ""):
+        # The contract injects files from data/, which is gitignored. They are
+        # present on a developer machine and absent in CI, so this is a
+        # precondition rather than a failure -- the same shape as the `paid`
+        # marker, declared instead of discovered.
+        pytest.skip(f"needs local data/ (gitignored): {chk['message'][:90]}")
     assert chk["status"] == "ok", f"Pre-flight failed: {chk}"
 
     dry = run_benchmark(CONTRACT, TARGET, dry_run=True, alias=ALIAS)
