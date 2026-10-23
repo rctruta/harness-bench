@@ -22,8 +22,18 @@ PY="$ROOT/.venv/bin/python"
 [ -x "$PY" ] || PY="$(command -v python3 || true)"
 
 if [ -x "$PY" ]; then
+    # Collect from the repository root, not from harnessbench/tests/.
+    #
+    # This said "full test suite" while running one directory. On 2026-10-23
+    # that was 51 of 52 tests: scripts/test_p0.py::test_seam existed, passed,
+    # and had never run before a push. A gate whose name is wider than its
+    # scope reports green over the gap, and the gap is invisible precisely
+    # because the gate is green.
+    #
+    # Rooted collection means a test added anywhere is covered by default.
+    # Adding a directory to this line each time is the same bug again.
     echo "[pre-push] running full test suite (this is the gate main relies on)…"
-    if ! "$PY" -m pytest harnessbench/tests/ -q --no-header; then
+    if ! "$PY" -m pytest -q --no-header; then
         echo "" >&2
         echo "[pre-push] REFUSING PUSH: test suite is red." >&2
         echo "  Fix the failing tests before pushing." >&2
