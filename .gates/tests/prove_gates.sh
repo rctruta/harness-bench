@@ -576,30 +576,14 @@ if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
     HOMEISH="/U""sers/someone/x.md"
     printf 'OUT = "%s"\n' "$HOMEISH" > "$PP/p.py"
     stage_probe
-    if (cd "$ROOT" && pre-commit run no-absolute-home-paths \
+    if (cd "$ROOT" && pre-commit run gitleaks \
           --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit no-absolute-home-paths did NOT block a home path"
+      bad "pre-commit gitleaks did NOT block a home path"
     else
-      ok "pre-commit no-absolute-home-paths blocks a home path"
+      ok "pre-commit gitleaks blocks a home path"
     fi
 
-    printf 'x = 1  # inte''rnal only\n' > "$PP/p.py"
-    stage_probe
-    if (cd "$ROOT" && pre-commit run no-private-marker \
-          --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit no-private-marker did NOT block a private declaration"
-    else
-      ok "pre-commit no-private-marker blocks a private declaration"
-    fi
 
-    printf '# s''he presented at an event.\n' > "$PP/p.py"
-    stage_probe
-    if (cd "$ROOT" && pre-commit run author-voice \
-          --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit author-voice did NOT block the third person"
-    else
-      ok "pre-commit author-voice blocks the third person"
-    fi
 
     printf 'def broken(\n' > "$PP/p.py"
     stage_probe
@@ -643,36 +627,45 @@ if [ -d "$ROOT/.githooks" ]; then
 fi
 
 # ------------------------------------------------- the hook, end to end -----
-# Every probe above runs a gate directly. None of them runs the hook, so none
-# of them can tell whether git reaches that gate at all. An entry point that
-# returns early disables everything appended after it while every individual
-# probe still passes.
+# Every probe above runs a gate directly, so none of them can tell whether git
+# reaches that gate at all. An entry point that returns early, or a hook file
+# without the execute bit, disables everything behind it while every
+# individual probe still passes.
 #
-# This plants a violation in a throwaway repository wired exactly like this
-# one and asserts that `git commit` is refused.
-if [ -f "$ROOT/.githooks/pre-commit" ]; then
-  HE=$(mktemp -d)
-  mkdir -p "$HE/.githooks"
-  cp "$ROOT/.githooks/pre-commit" "$HE/.githooks/"
-  [ -d "$ROOT/.gates" ] && cp -R "$ROOT/.gates" "$HE/.gates"
-  [ -f "$ROOT/.pre-commit-config.yaml" ] && \
-    cp "$ROOT/.pre-commit-config.yaml" "$ROOT/ruff.toml" "$HE/" 2>/dev/null
-  rm -rf "$HE/.gates/tests" "$HE/.gates/baseline" "$HE/.gates/checkpoints"
-  (
-    cd "$HE"
-    git init -q
-    git config core.hooksPath .githooks
-    git config user.email probe@example.invalid
-    git config user.name probe
-    printf 'x = 1  # inte''rnal only\n' > violation.py
-    git add -A
-  ) >/dev/null 2>&1
-  if (cd "$HE" && git commit -q -m "planted violation") >/dev/null 2>&1; then
-    bad "the pre-commit HOOK accepted a commit every gate refuses"
+# Run in THIS repository, against the real installed hook. A copy into a
+# throwaway tree cannot know what the hook needs -- a helper script outside
+# .gates, a baseline, a pinned committer identity -- and every missing piece
+# makes the hook refuse for a reason that has nothing to do with the test.
+#
+# Both directions, because one proves nothing: a hook that refuses everything
+# passes a refusal-only probe. Nothing is committed; a file is staged, the
+# hook is run as git runs it, and the file is removed either way.
+if [ -f "$ROOT/.githooks/pre-commit" ] && git -C "$ROOT" hook run --help >/dev/null 2>&1; then
+  HP="$ROOT/.gates/.hprobe.py"
+  hook_run() { git -C "$ROOT" hook run pre-commit >/dev/null 2>&1; }
+  cleanup_hp() {
+    git -C "$ROOT" rm -q --cached "${HP#"$ROOT/"}" >/dev/null 2>&1 || true
+    rm -f "$HP"
+  }
+
+  printf 'def fine():\n    return 1\n' > "$HP"
+  git -C "$ROOT" add -f "${HP#"$ROOT/"}" >/dev/null 2>&1
+  if hook_run; then
+    ok "the pre-commit hook accepts a clean staged file end to end"
+
+    # A file that does not parse. No local pattern owns this, and it cannot
+    # stop being a violation when a pattern is retired.
+    printf 'def broken(\n' > "$HP"
+    git -C "$ROOT" add -f "${HP#"$ROOT/"}" >/dev/null 2>&1
+    if hook_run; then
+      bad "the pre-commit HOOK accepted a file that does not parse"
+    else
+      ok "the pre-commit hook refuses a violating staged file end to end"
+    fi
   else
-    ok "the pre-commit hook refuses a violating commit end to end"
+    bad "the pre-commit hook refused a CLEAN file, so a refusal proves nothing"
   fi
-  rm -rf "$HE"
+  cleanup_hp
 fi
 
 echo

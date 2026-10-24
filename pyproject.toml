@@ -11,7 +11,6 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "orjson",
-    "sqlbenchdag @ file://localhost/Users/ramona/Projects/sql-benchmarks-dagster",
     "modal>=1.5.3",
 ]
 

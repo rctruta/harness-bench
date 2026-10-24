@@ -7,16 +7,11 @@
 Runs in release.yml BEFORE the upload step, because the rule it enforces was
 already written down and still broken.
 
-The incident. Version 0.1.2 went to PyPI with 1089 files, of which 881 were not
-this package: a build/ tree nested six deep, venv/, tests/, skills/,
-infrastructure/, and scratch/ -- twelve unrelated local scripts carrying
-home-directory paths and the names of two unpublished projects. 82% of the
-download. `include-package-data` defaults to true and there was no MANIFEST.in,
-so setuptools swept whatever happened to be in the working directory.
-
-It had been degrading quietly for three releases: 0.1.0 shipped 2 stray files,
-0.1.1 shipped 14, 0.1.2 shipped 881. Nobody looked inside a wheel, because
-`uv build` succeeding looks like success.
+The failure mode. `include-package-data` defaults to true, and without a
+MANIFEST.in setuptools packages whatever is in the working directory: build
+trees, virtualenvs, tests, local scripts. The build still exits 0, and the
+stray share tends to grow release over release, because nobody looks inside a
+wheel when the build succeeding looks like success.
 
 Two assertions, both about the artifact rather than the build:
 
@@ -36,7 +31,7 @@ import zipfile
 
 PACKAGE = "sql_benchmarks"
 # Split so this file is not itself a finding. It is installed into every
-# seeded project, and the no-absolute-home-paths hook scans it -- a detector
+# seeded project, and gitleaks' home-path rule scans it -- a detector
 # that trips its sibling detector blocks the first commit of a fresh repo.
 HOME_PATH = re.compile(rb"/U" rb"sers/[A-Za-z0-9._-]+|/h" rb"ome/[A-Za-z0-9._-]+")
 TEXT_EXT = (".py", ".md", ".txt", ".yaml", ".yml", ".json", ".sh", ".cfg", ".toml")
