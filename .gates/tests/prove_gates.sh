@@ -576,11 +576,11 @@ if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
     HOMEISH="/U""sers/someone/x.md"
     printf 'OUT = "%s"\n' "$HOMEISH" > "$PP/p.py"
     stage_probe
-    if (cd "$ROOT" && pre-commit run no-absolute-home-paths \
+    if (cd "$ROOT" && pre-commit run gitleaks \
           --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit no-absolute-home-paths did NOT block a home path"
+      bad "pre-commit gitleaks did NOT block a home path"
     else
-      ok "pre-commit no-absolute-home-paths blocks a home path"
+      ok "pre-commit gitleaks blocks a home path"
     fi
 
 

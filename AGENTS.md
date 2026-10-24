@@ -28,15 +28,17 @@ first. This costs nothing when everything is up to date.
 
 ### At the end of every turn that created or modified files
 
+Commit on a topic branch, staging files by name:
+
 ```bash
-git add -A
-git commit -m "clear message"
-git push origin main
+git switch -c <type>/<topic>      # once, if not already on a topic branch
+git add <file> <file>
+git commit -m "fix: what changed"
 ```
 
-In the **same turn** as the change — not "later," not "when I'm done for the
-day." Every user-facing response that ships modified files ends with the
-push.
+In the **same turn** as the change. Do not push unless Ramona asks for it in
+the current session; she pushes, opens and merges pull requests. See
+*Publishing* below.
 
 ### Never leave state behind
 
@@ -52,15 +54,14 @@ worth keeping, commit it. If it's not, delete it. There is no third state.
 
 ### Branches for exploratory work
 
-If a change is exploratory and shouldn't hit `main` (e.g., a broken
-experiment WIP, a rewrite you're mid-thinking), work on a named branch and
-push there. The rule still applies: the branch must exist on `origin`,
-not just locally.
+Exploratory work (a broken experiment, a rewrite in progress) goes on a
+named local branch. It is pushed only when Ramona asks: this repository is
+public, and a pushed branch is published.
 
 ```bash
 git switch -c wip/<clear-topic-name>
 # ...edits...
-git add -A && git commit -m "..." && git push -u origin wip/<clear-topic-name>
+git add <file> && git commit -m "wip: ..."
 ```
 
 ---
@@ -81,3 +82,34 @@ this hook can).
 If the hook refuses your push with `working tree has uncommitted or
 untracked files`, that's the enforcement working. Commit or discard the
 loose files, then push again.
+
+---
+
+## Publishing: what an agent may and may not do
+
+This repository is public. Anything pushed to it, including branches, commit
+messages and pull-request text, can be read by anyone and stays in history.
+
+- **Agents do not publish.** No `git push` unless the owner asks for it in the
+  current session, and never to `main`. No merging pull requests, no
+  force-push, no rewriting history, no changing repository settings. An agent
+  works on a local branch; the owner reviews, pushes and merges.
+- **Stage files by name.** Never `git add -A` or `git add .`. Before every
+  commit, read `git status` and `git diff --staged` and confirm each path is
+  meant to be public.
+- **Private material stays outside the repository.** Personal material and
+  unpublished work are never copied in, referenced by
+  absolute path, or quoted in code, comments, tests, commit messages or PR
+  text. Code that needs private data reads its location from an environment
+  variable.
+- **Commit messages and PR text are public writing.** Use a short
+  Conventional Commits subject (`fix: ...`, `docs: ...`, `chore: ...`) that
+  says what changed. A body, if any, explains the change technically. No
+  session narrative, no account of earlier mistakes, no incident dates, no
+  names of people or private documents.
+- **The owner reviews before merge:** `git log -p origin/main..HEAD` and the
+  PR title. Squash merges use the PR title only, so the commit on `main` says
+  exactly what was reviewed.
+- **Secrets:** gitleaks runs in pre-commit, and GitHub secret scanning and push
+  protection are on. Fix a finding by removing the value. Do not allowlist it
+  unless the owner says so.

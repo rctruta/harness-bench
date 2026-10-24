@@ -38,15 +38,10 @@ repos:
         # check for correctness. The rule selection is in ruff.toml.
         args: [--no-fix]
 
-  # Checks that would otherwise be a script. A pattern and a message:
-  # pre-commit supplies the file selection, the staging and the reporting.
-  #
-  # Files are selected by extension, never by directory name. A check
-  # pointed at a directory reports clean once the layout changes.
-  - repo: local
+  # Secrets and machine-specific paths. gitleaks is the standard scanner;
+  # .gitleaks.toml keeps its default rules and adds one for home-directory
+  # paths.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
     hooks:
-      - id: no-absolute-home-paths
-        name: no absolute home path in a tracked file
-        language: pygrep
-        entry: '/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+|C:\\Users\\'
-        exclude: '^\.pre-commit-config\.yaml$'
+      - id: gitleaks
