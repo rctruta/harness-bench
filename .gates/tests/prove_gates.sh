@@ -632,8 +632,15 @@ fi
 # returns early disables everything appended after it while every individual
 # probe still passes.
 #
-# This plants a violation in a throwaway repository wired exactly like this
-# one and asserts that `git commit` is refused.
+# Both directions, in the same throwaway repository, because one direction
+# proves nothing. A hook that refuses EVERY commit -- a committer-identity
+# rule the probe cannot satisfy, a privacy check that trips on the fixture --
+# makes a refusal-only probe pass without testing anything. The clean commit
+# is what detects that.
+#
+# The planted violation is a file that does not parse. Every repository's
+# general-purpose set refuses that, it is not anyone's local policy, and it
+# cannot stop being a violation when a pattern is retired.
 if [ -f "$ROOT/.githooks/pre-commit" ]; then
   HE=$(mktemp -d)
   mkdir -p "$HE/.githooks"
@@ -641,20 +648,37 @@ if [ -f "$ROOT/.githooks/pre-commit" ]; then
   [ -d "$ROOT/.gates" ] && cp -R "$ROOT/.gates" "$HE/.gates"
   [ -f "$ROOT/.pre-commit-config.yaml" ] && \
     cp "$ROOT/.pre-commit-config.yaml" "$ROOT/ruff.toml" "$HE/" 2>/dev/null
-  rm -rf "$HE/.gates/tests" "$HE/.gates/baseline" "$HE/.gates/checkpoints"
+  # .gates/tests only to stop this script recursing. The baseline STAYS:
+  # it is what makes the copy behave like the real repository, and
+  # dropping it turns every accepted finding back into a fresh one.
+  rm -rf "$HE/.gates/tests"
+
+  # The committer identity is read from this repository, so a hook that
+  # pins one is satisfied here as it is in real use.
+  HE_EMAIL="$(git -C "$ROOT" config user.email || echo probe@example.invalid)"
   (
     cd "$HE"
     git init -q
     git config core.hooksPath .githooks
-    git config user.email probe@example.invalid
+    git config user.email "$HE_EMAIL"
     git config user.name probe
-    printf 'x = 1  # inte''rnal only\n' > violation.py
+    printf 'def fine():\n    return 1\n' > ok.py
     git add -A
   ) >/dev/null 2>&1
-  if (cd "$HE" && git commit -q -m "planted violation") >/dev/null 2>&1; then
-    bad "the pre-commit HOOK accepted a commit every gate refuses"
+
+  if (cd "$HE" && git commit -q -m "a clean commit") >/dev/null 2>&1; then
+    ok "the pre-commit hook accepts a clean commit end to end"
+    printf 'def broken(\n' > "$HE/violation.py"
+    (cd "$HE" && git add -A) >/dev/null 2>&1
+    if (cd "$HE" && git commit -q -m "a file that does not parse") >/dev/null 2>&1; then
+      bad "the pre-commit HOOK accepted a file that does not parse"
+    else
+      ok "the pre-commit hook refuses a violating commit end to end"
+    fi
   else
-    ok "the pre-commit hook refuses a violating commit end to end"
+    # Not a pass in disguise: if nothing can be committed here, the refusal
+    # half of this probe would succeed for a reason unrelated to any gate.
+    bad "the pre-commit hook refused a CLEAN commit, so a refusal proves nothing"
   fi
   rm -rf "$HE"
 fi
