@@ -1,0 +1,12 @@
+# no_orphans: findings that predate this gate's adoption.
+# They are reported, not enforced. This file may shrink, never grow.
+# 1 finding(s) at adoption
+# harnessbench/analysis.py is imported only by
+# harnessbench/tests/test_analysis_mode_gate.py. Its docstring calls it
+# "mode-safe trace loading for analysis" and it raises MixedModeError -- a
+# guard against mixing real and simulated traces that nothing in the live path
+# calls, so the protection it implies does not exist. Same shape as the
+# "semantic firewall" specimen. Two ways out, both Ramona's call: route the
+# analysis path through load_traces, or delete it and stop implying the guard.
+# Until then this is reported and not enforced.
+harnessbench/analysis.py	orphan

@@ -1,0 +1,127 @@
+# What this project publishes, and what each surface requires.
+#
+# Read by .gates/check_publish_contract.py, in the pre-commit hook and in any
+# release workflow. The point is that a publishing surface cannot exist
+# without its rules, and cannot lose its defining file without saying so.
+#
+# WHY. Three failures in one afternoon, 2026-10-20, in sql-benchmarks-dagster,
+# all the same shape -- information that was required, was missing, and nothing
+# asked for it:
+#
+#   server.json declared version 0.1.2 while pyproject said 0.1.3. The MCP
+#   registry's own validator requires a version that EXISTS on PyPI and never
+#   compares it to anything, so the stale manifest published cleanly and the
+#   public listing described the wrong release.
+#
+#   server.json and the README's ownership token existed only on a local,
+#   unpushed branch. The file defining a live public listing was on one laptop.
+#
+#   CITATION.cff said version 0.1.0 released 2026-06-22 while PyPI was at
+#   0.1.3, so every citation named a version three releases old. That one was
+#   found by this gate on its first run.
+#
+# HOW A SURFACE IS EVALUATED. `trigger` is the file whose presence means the
+# surface is in play. Four cases, and the two that fail are the point:
+#
+#   live    + trigger present  -> run its requirements and checks
+#   live    + trigger MISSING  -> FAIL. A published surface whose defining file
+#                                 is not in the tree cannot be reproduced.
+#   planned + trigger APPEARS  -> FAIL. The artifact arrived and its rules were
+#                                 never written.
+#   planned + trigger absent   -> silent. Nothing to do yet.
+#
+# The third case is the one that is not standard practice. Normally a
+# package.json appears, nobody has written npm publishing rules, and nothing
+# says so. Here the arrival of the artifact DEMANDS its own requirements, so a
+# surface can be declared years before it exists and still be safe: nobody has
+# to remember, because the gap becomes loud at the moment it starts to matter.
+#
+# Everything below ships `planned` on purpose. A new project publishes nothing,
+# and these are placeholders waiting for the day it does. Delete the ones that
+# will never apply -- an inventory nobody believes is worse than a short one.
+
+# The single file holding the version every other file must agree with.
+# kinds: toml_project_version | json_version | yaml_version
+version_source:
+  path: pyproject.toml
+  kind: toml_project_version
+
+surfaces:
+
+  - id: pypi
+    status: planned
+    # NOT pyproject.toml. Nearly every Python project has one without
+    # publishing anything, so it is a signal that this project exists, not
+    # that it publishes -- harness-bench showed this immediately: it has a
+    # pyproject, is 404 on PyPI, and the gate demanded publishing rules it
+    # should never need. The trigger is the thing that does the publishing.
+    #
+    # A manual `twine upload` leaves no file to trigger on. If you publish
+    # that way, set status: live by hand -- a trigger cannot detect a decision
+    # nobody wrote down.
+    trigger: .github/workflows/release.yml
+    why: "a Python distribution on PyPI, published by a release workflow"
+    requires: []
+    # When this goes live, the useful ones are:
+    #   - kind: file_exists
+    #     path: README.md
+    #     because: "PyPI renders it as the project description"
+    checks: []
+
+  - id: mcp-registry
+    status: planned
+    trigger: server.json
+    why: >
+      an MCP server in the official registry. The registry matches a
+      `mcp-name:` token in the package README against the name in server.json
+      to confirm the publisher; a release whose README lacks it is rejected.
+      It does NOT check that the declared version matches the package.
+    requires: []
+    # When this goes live:
+    #   - kind: json_version_matches_source
+    #     path: server.json
+    #     field: version
+    #   - kind: json_version_matches_source
+    #     path: server.json
+    #     field: packages[].version
+    #   - kind: file_contains_json_field
+    #     path: README.md
+    #     from: server.json
+    #     field: name
+    #     template: "mcp-name: {}"
+    checks: []
+
+  - id: citation
+    status: planned
+    trigger: CITATION.cff
+    why: >
+      what a reader copies into a bibliography. It carries its own version and
+      drifts silently; found three releases stale on the first run of this gate
+      in another repository.
+    requires: []
+    # When this goes live:
+    #   - kind: yaml_version_matches_source
+    #     path: CITATION.cff
+    #     field: version
+    checks: []
+
+  - id: npm
+    status: planned
+    trigger: package.json
+    why: "a Node package on npm"
+    requires: []
+    checks: []
+
+  - id: docker
+    status: planned
+    trigger: Dockerfile
+    why: "a published image, whose tag must agree with the release version"
+    requires: []
+    checks: []
+
+  - id: github-action
+    status: planned
+    trigger: action.yml
+    why: "a published action, whose declared version must match the tag"
+    requires: []
+    checks: []

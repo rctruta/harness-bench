@@ -1,0 +1,31 @@
+# Bauplan Lakehouse Skills Ablation Study Contract
+# Evaluates token cost, pass rate, and model-tier reliance on Bauplan Lakehouse workflows.
+
+# NOTE: was 'orchestrator' (now 'sbd_orchestrator') — that driver is
+# hardcoded to SBD's role names and cannot drive Bauplan's roles
+# (data_explorer/branch_developer/auditor). This target now has its own
+# driver, 'bauplan_orchestrator' (see contracts/bauplan_poc_orchestrator.yaml),
+# but this contract stays on 'monolith' since it predates that work.
+driver: monolith
+replications: 1
+poll_budget_seconds: 60
+
+models:
+  - gemini/gemini-2.5-flash
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o-mini
+
+goal: >
+  Create a feature branch `ramona.etl-taxi`, inspect table `bauplan.taxi_fhvhv`, dry-run a pipeline to clean trips, materialize it, verify diff against main, and merge into main.
+
+cells:
+  cell_1_bauplan_skills_default:
+    description: "Bauplan default: Full CLAUDE.md + markdown skills injected into prompt."
+    flags:
+      inject_files:
+        - "data/bauplan_skills/bauplan-skills-repo/CLAUDE.md"
+        - "data/bauplan_skills/bauplan-skills-repo/plugins/bauplan/skills/bauplan-data-pipeline/SKILL.md"
+
+  cell_2_compiled_code_gates:
+    description: "Compiled Code Gates: State-machine specialist roles + mechanical preconditions (zero prose skills)."
+    flags: {}

@@ -1,0 +1,34 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Output and traces
+runs/
+agent_runs/
+*.jsonl
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# WIP
+scratch/
+data/
+.gates/ledger.jsonl
+
+# Local notes: a symlink outside the worktree. See .gates/scratch_external.py
+scratch
+
+# The outbound term list is deliberately untracked: a committed list of
+# unpublished work publishes what it protects.
+.gates/outbound_private.txt

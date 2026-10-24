@@ -1,0 +1,44 @@
+# Rerun of contracts/bauplan_matched_orchestrator.yaml for the 2 models
+# whose first matched run had a fixable, not-capability-inherent problem:
+# Haiku (0/3 — branch_developer never emitted HANDOFF, kept building
+# unrequested extra tables) and GPT-4o (2/3 — one failure driven partly
+# by a literal '<your-username>' placeholder in the prompt). Gemini Pro
+# skipped deliberately (already 3/3, no caching solved for it, no
+# information gained by re-spending on a model that already works).
+# Monolith skipped: none of tonight's 3 fixes (stop-condition instruction,
+# BAUPLAN_USERNAME instead of hardcoded 'ramona', dropped redundant
+# data_explorer stage) touch MonolithDriver, which doesn't use
+# adapter.roles() at all.
+#
+# Same goal, same grading, same everything else as the original matched
+# contract — only the model roster is narrower.
+
+driver: bauplan_orchestrator
+expect_mode: real
+replications: 3
+
+models:
+  - anthropic/claude-haiku-4-5-20251001
+  - gpt-4o
+
+goal: >
+  Using Bauplan, safely compute and publish the TPC-H Q3 shipping-priority
+  query result: for customers in the BUILDING market segment, find the top
+  10 unshipped orders (order date before 1995-03-15, at least one lineitem
+  shipping after 1995-03-15) by revenue (sum of extended price * (1 -
+  discount)), ordered by revenue descending. Source tables are in the
+  tpch_1 namespace (customer, orders, lineitem) on main.
+
+  You must write your own pipeline code — nothing is pre-built for you.
+  Do the work on your own isolated branch; never modify main directly.
+  Once you've verified your result is correct, merge your branch into
+  'ramona.sandbox-matched' (not main — you do not have permission to merge
+  into main).
+
+  Report your final answer as: FINAL ANSWER: <branch merged into, brief
+  description of how you verified correctness>.
+
+cells:
+  cell_1_state_machine:
+    description: "State-machine specialist roles, zero prose skills (branch_developer -> auditor, no data_explorer)."
+    flags: {}

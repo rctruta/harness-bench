@@ -1,0 +1,8 @@
+# check_script_standards: findings that predate this gate's adoption.
+# They are reported, not enforced. This file may shrink, never grow.
+# 5 finding(s) at adoption
+.gates/check_version.py::"~/Projects/ai-agent-utils/templates/gates"
+harnessbench/api.py::"http://localhost:11434/api/tags"
+harnessbench/registry.py::"https://mcp.use1.aprod.bauplanlabs.com/mcp"
+scripts/verify_merge_conflict_recovery.py::"/tmp/mcrec_runs"
+scripts/verify_merge_conflict_recovery.py::"/tmp/mcrec_runs/**/{res.sub_run_id}.jsonl"

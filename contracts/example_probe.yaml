@@ -1,0 +1,16 @@
+# Seed probe contract — Phase 0 shape. study_id = sha256(file bytes)[:8].
+meta:
+  name: "Phase-0 probe: <target MCP server>"
+  target:
+    kind: mcp            # mcp | openapi
+    endpoint: "stdio: <command>"   # or http(s) URL
+driver: monolith          # monolith | specialist (Phase 1+)
+models: [gemini/gemini-2.5-flash, anthropic/claude-fable-5]
+replications: 1
+goals:
+  - "…a task the target's tools should accomplish…"
+  - "…an ambiguous task requiring tool-selection judgment…"
+  - "…an impossible task the target cannot satisfy (refusal probe)…"
+cells:
+  rich_schema:    {flags: {neutral_tool_descriptions: false}}
+  neutral_schema: {flags: {neutral_tool_descriptions: true}}

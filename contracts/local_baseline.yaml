@@ -1,0 +1,20 @@
+# Local MCP Baseline Contract
+# Target: mcp:stdio:uvx mcp-server-motherduck (or any other MCP)
+
+driver: monolith
+models:
+  - ollama/llama3
+  - ollama/phi3
+
+replications: 1
+poll_budget_seconds: 180
+
+goal: >
+  You have access to a database via tools.
+  1. List all available tables.
+  2. Provide the names of the tables in your final answer.
+
+cells:
+  baseline:
+    flags:
+      steering: "none"

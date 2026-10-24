@@ -1,0 +1,30 @@
+# MotherDuck MCP study: raw-SQL surface × mechanical gates (hooks).
+# Target: mcp:stdio:uvx mcp-server-motherduck --db-path <harness-bench>/data/motherduck_study.duckdb
+# DB seeded by scripts/make_motherduck_study_db.py (deterministic; it prints
+# ground truth). Baseline also measures unprompted adoption of the typed
+# discovery tools (list_tables/list_columns) next to raw execute_query.
+# Model ladder: two cheap (gpt-4o-mini, haiku-4.5), one reasoning (o3-mini),
+# one frontier (sonnet-5) — each tier fails differently.
+
+driver: monolith
+models:
+  - gpt-4o-mini
+  - anthropic/claude-haiku-4-5-20251001
+  - o3-mini
+  - anthropic/claude-sonnet-5
+replications: 1
+
+goal: >
+  Using the available database tools: which region has the highest total order revenue, and what is that revenue? Give the region name and the exact number to 2 decimals.
+
+cells:
+  baseline:
+    flags: {}
+  gated:
+    flags:
+      hooks:
+        - require_before: {tool: execute_query, requires: list_tables}
+        - deny_args: {tool: execute_query, arg: sql,
+            pattern: "(?is)select\\s+\\*\\s+from(?!.*limit)",
+            message: "no unbounded SELECT *; project columns or add LIMIT"}
+        - max_calls: {tool: execute_query, limit: 8}

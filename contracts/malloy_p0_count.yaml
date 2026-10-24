@@ -1,0 +1,20 @@
+# Phase 0 probe: Malloy Publisher MCP (official Docker image, DuckDB samples).
+# Target: mcp:http:http://localhost:4040/mcp
+# Companion to reports/malloy-publisher/static_report.md. Cost+marker probe
+# only (Phase 0: no grading, no specialists). The tools/list surface carries
+# 5 typed tools and NONE of the 28 skills served as MCP prompts — the
+# dead-channel hypothesis in its natural state.
+
+driver: monolith
+models:
+  - gpt-4o-mini
+  - anthropic/claude-haiku-4-5-20251001
+replications: 1
+poll_budget_seconds: 120
+
+goal: >
+  Using the malloy-samples environment, find how many flights are in the faa package's flights data. Give the exact number.
+
+cells:
+  baseline:
+    flags: {}

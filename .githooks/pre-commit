@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# --- committer identity gate -------------------------------------------
+# Commits must use the masked GitHub address, never a real one.
+MASKED="17259677+rctruta@users.noreply.github.com"
+actual=$(git config user.email)
+if [ "$actual" != "$MASKED" ]; then
+  echo "BLOCKED: commit email is '$actual', expected '$MASKED'" >&2
+  echo "  fix: git config user.email \"$MASKED\"" >&2
+  exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# --- pre-commit framework ----------------------------------------------
+# The general-purpose checks are declared in .pre-commit-config.yaml. They run
+# from here rather than from .git/hooks, because core.hooksPath points at this
+# directory and git ignores .git/hooks while it does.
+#
+# If the config is present the runner must be too: a missing runner is a
+# precondition that was not met, not a clean run. Exit 3 says so.
+if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
+  if command -v pre-commit >/dev/null 2>&1; then
+    pre-commit run --hook-stage pre-commit || exit 1
+  else
+    echo "  -> .pre-commit-config.yaml is present but pre-commit is not installed." >&2
+    echo "     Run: pip install pre-commit" >&2
+    echo "     Not running a declared check is not a pass." >&2
+    exit 3
+  fi
+fi
+
+# --- gates from ai-agent-utils -----------------------------------------
+# Local policy, bypassable by design. GATES.md in ai-agent-utils says why each
+# exists. Findings that predate adoption live in .gates/baseline/.
+if [ -d "$ROOT/.gates" ]; then
+  PY="$(command -v python3 || true)"
+  if [ -n "$PY" ]; then
+    "$PY" "$ROOT/.gates/no_hardcoding.py" --check || exit 1
+    "$PY" "$ROOT/.gates/check_script_standards.py" --check || {
+      echo "  -> A script hardcodes configuration, or needs bash." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/check_publish_contract.py" --check || {
+      echo "  -> A publishing surface is missing required information." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/scratch_external.py" --check || {
+      echo "  -> A local notes folder is reachable by git, or a note is tracked." >&2; exit 1; }
+    "$PY" "$ROOT/.gates/no_orphans.py" --check || {
+      echo "  -> A module is imported only by its own test. A passing test" >&2
+      echo "     there certifies a feature that never runs." >&2; exit 1; }
+    # check_wheel.py is installed but NOT wired: it gates a distribution, and
+    # this project publishes none. Wire it into a release workflow if that
+    # changes -- a gate on something that never happens is cost without cover.
+    # check_outbound.py is wired into .githooks/commit-msg, not here: its
+    # subject is the message, which does not exist at pre-commit time.
+  fi
+fi

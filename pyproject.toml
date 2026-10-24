@@ -1,0 +1,32 @@
+[project]
+name = "harnessbench"
+version = "0.0.1"
+description = "Pre-deployment measurement for MCP/tool agents: cost, capability, and missing-state discovery — the work before the work."
+requires-python = ">=3.11, <3.14"
+dependencies = [
+    "pyyaml",
+    "httpx",
+    "litellm",
+    "pydantic",
+    "fastapi",
+    "uvicorn",
+    "orjson",
+    "modal>=1.5.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+harnessbench = "harnessbench.cli:main"
+
+[tool.gates.no_hardcoding]
+min_length = 25
+data_dirs = ["data", "contracts"]
+code_dirs = ["harnessbench", "scripts"]
+data_extensions = [".yaml", ".yml", ".json", ".toml"]
+code_extensions = [".py", ".sh"]
+exclude = []
+
+[tool.gates.claim_integrity]
+facts_file = ".gates/FACTS.yaml"
