@@ -36,7 +36,26 @@ def main():
                                     "tool results. Without this flag, report generation refuses "
                                     "if any trace ran in mock mode.")
 
+    parser_metrics = subparsers.add_parser(
+        "metrics", help="Every number this project would quote, derived")
+    parser_metrics.add_argument(
+        "--name", help="print one metric's bare value and exit")
+
     args = parser.parse_args()
+
+    if args.command == "metrics":
+        from . import metrics as _metrics
+        if args.name:
+            # Bare value on stdout: a claim check compares this directly, and
+            # a number wrapped in JSON would have to be parsed to be used.
+            try:
+                print(_metrics.get(args.name).value)
+            except KeyError as exc:
+                print(exc, file=sys.stderr)
+                return 2
+            return 0
+        print(json.dumps(_metrics.as_dict(), indent=2))
+        return 0
 
     if args.command == "check":
         print(f"Checking environment for target: {args.target}")
@@ -71,7 +90,6 @@ def main():
         print(f"Grading study in {args.study_dir}")
         results = grade_study(args.study_dir, adapter)
         out_path = os.path.join(args.study_dir, "graded_traces.json")
-        import json
         with open(out_path, "w") as f:
             json.dump(results, f, indent=2)
         print(f"Graded {len(results)} traces. Output saved to {out_path}")
@@ -90,4 +108,7 @@ def main():
         print("\n" + report)
 
 if __name__ == "__main__":
-    main()
+    # sys.exit, so a non-zero return reaches the caller. Without it main()'s
+    # return codes were discarded and every invocation exited 0 -- which
+    # makes the CLI unusable as a claim check, since a check reads $?.
+    sys.exit(main() or 0)

@@ -120,8 +120,16 @@ def test_rule2_result_carries_provenance_into_output():
 
 # --- BP-3 / MD-1: the Bauplan reference is extracted, not retyped ---------
 def test_bp3_reference_query_is_extracted_from_the_pipeline_source():
-    from harnessbench.graders.bauplan_q3_reference import extract_reference
-    ref = extract_reference()
+    from harnessbench.graders.bauplan_q3_reference import (
+        ReferenceExtractionError, extract_reference)
+    try:
+        ref = extract_reference()
+    except ReferenceExtractionError as exc:
+        # data/ is gitignored, so the pipeline source this reads exists on a
+        # developer machine and nowhere else. CI cannot check this; saying so
+        # is honest, while failing would claim the grader is broken when the
+        # only thing missing is local data.
+        pytest.skip(f"needs local data/ (gitignored): {exc}")
     # filters live in the decorator, not the SQL — retyping them is the defect
     filters = {v["filter"] for v in ref["inputs"].values()}
     assert "c_mktsegment = 'BUILDING'" in filters
