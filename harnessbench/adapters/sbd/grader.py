@@ -53,7 +53,7 @@ def load_ground_truth(exp_id: str):
         for b in vals:
             if a and b and a != b:
                 ratios.add(b / a)
-                
+
     cfg = os.path.join(SBD_RESULTS_DIR, exp_id, "experiment_config.yaml")
     row_counts = []
     if os.path.exists(cfg):
@@ -148,14 +148,14 @@ def sbd_grader(path: str) -> Dict[str, Any]:
 
     coverage = sum(covered.values()) / len(covered) if covered else 0.0
     coverage_any = any(covered.values())
-    
+
     if claims and coverage_any and not unmatched:
         verdict = "PASS"
     elif coverage_any and unmatched:
         verdict = "PARTIAL"
     else:
         verdict = "FAIL"
-        
+
     return {
         "exp_id": exp_id, "verdict": verdict,
         "coverage": round(coverage, 3),

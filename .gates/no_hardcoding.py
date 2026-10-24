@@ -5,21 +5,20 @@ no_hardcoding — refuse code that repeats a value its data file already holds.
   .gates/no_hardcoding.py              report
   .gates/no_hardcoding.py --check      exit 1 on any hit
 
-The failure this exists for, observed 2026-10-13: a generator rendered a list of
-certificates as literal HTML while the same certificates sat in the YAML it was
-supposed to read. The data was edited — years removed, deliberately — and the
-page kept showing the hardcoded copy with the years in it. The rule "no
-hardcoded values" had been stated repeatedly, in writing, to every agent that
-touched the repository. A rule in a document is not a gate.
+The failure this exists for: a generator emits a literal copy of values that
+also sit in the data file it is supposed to read. Editing the data then changes
+nothing, and the rendered page keeps showing the old copy. "No hardcoded
+values" stated in writing does not prevent this. A rule in a document is not a
+gate.
 
 What it does: collects values out of the data files, normalises them, and
 refuses any that also appear inside the code that is supposed to render them.
 
-Normalisation matters more than the comparison. The certificate in the data read
-"Large Language Models — Databricks / edX" and the copy in the generator read
-"Large Language Models &mdash; Databricks / edX, 2023" — not equal as strings,
-the same claim to a reader. So: HTML entities decoded, dashes unified, case and
-whitespace flattened, and a trailing year dropped before comparing.
+Normalisation matters more than the comparison. A value in the data and its
+copy in the code differ by an HTML entity, a dash, a case change or a trailing
+year — unequal as strings, identical to a reader. So: entities decoded, dashes
+unified, case and whitespace flattened, and a trailing year dropped before
+comparing.
 
 Configure it where it differs per project — the defaults suit a `data/` plus
 generators layout:
@@ -66,8 +65,8 @@ def normalise(s):
 # A data file that declares its own generator is OUTPUT, not source: the code
 # defines those values and emits them. Flagging it inverts the relationship and
 # would push an author to move a definition into a file that is overwritten on
-# the next run. Observed 2026-10-13 against a ground-truth JSON emitted by the
-# script that defines it — the gate was wrong, not the repository.
+# the next run. A finding against such a file is the gate being wrong, not the
+# code.
 GENERATED = re.compile(r'generated[_ ]by|@generated|do not edit', re.I)
 
 

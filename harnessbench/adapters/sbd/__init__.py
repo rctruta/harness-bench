@@ -49,7 +49,7 @@ class SbdAdapter(TargetAdapter):
             tmpl_first = None
             projs = []
             raw_used = False
-            
+
             with open(path, 'r') as f:
                 for line in f:
                     e = json.loads(line)
@@ -71,7 +71,7 @@ class SbdAdapter(TargetAdapter):
                             projs.append(name)
                         elif name == "get_experiment_result":
                             raw_used = True
-                            
+
             return {
                 "category_filtered": cat_filtered,
                 "unfiltered_suites": unfiltered,
@@ -79,5 +79,5 @@ class SbdAdapter(TargetAdapter):
                 "projections_used": list(set(projs)),
                 "raw_result_used": raw_used
             }
-            
+
         return {"sbd_markers": _extract}

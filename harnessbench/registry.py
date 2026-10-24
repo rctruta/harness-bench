@@ -8,11 +8,11 @@ def load_adapter(name: str) -> TargetAdapter:
         # We lazily import so the generic engine doesn't blow up if SBD isn't installed
         from harnessbench.adapters.sbd import SbdAdapter
         return SbdAdapter()
-    
+
     if name == "fake":
         from harnessbench.tests.fake_adapter import FakeAdapter
         return FakeAdapter()
-        
+
     if name in ("bauplan", "bauplan_lakehouse"):
         # Mock by default — existing tests depend on this. Real experiments
         # MUST use 'bauplan_lakehouse_real' explicitly + contract
@@ -29,13 +29,13 @@ def load_adapter(name: str) -> TargetAdapter:
     if name == "bauplan_mcp_mirror":
         from harnessbench.adapters.bauplan_mcp_mirror import BauplanMcpMirrorAdapter
         return BauplanMcpMirrorAdapter()
-    
+
     if name.startswith("skill:"):
         inner_name = name[len("skill:"):]
         inner = load_adapter(inner_name)
         from harnessbench.adapters.skill import SkillAdapter
         return SkillAdapter(inner)
-        
+
     if name == "mcp:http:bauplan":
         # Bauplan's real, production MCP server (docs.bauplanlabs.com/agents/mcp).
         # Key stays out of the target-name string (which becomes a runs/ folder
@@ -65,5 +65,5 @@ def load_adapter(name: str) -> TargetAdapter:
         command = shlex.split(cmd_str)
         from harnessbench.adapters.mcp import McpAdapter
         return McpAdapter(command)
-        
+
     raise ValueError(f"Unknown TargetAdapter: '{name}'")

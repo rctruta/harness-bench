@@ -30,7 +30,7 @@ call_count = 0
 def mock_completion(**kwargs):
     global call_count
     call_count += 1
-    
+
     # Turn 1: Model decides to call echo_tool
     if call_count == 1:
         class MockFunction:
@@ -39,16 +39,16 @@ def mock_completion(**kwargs):
         class MockToolCall:
             id = "call_123"
             function = MockFunction()
-            
+
             def model_dump(self):
                 return {
                     "id": self.id,
                     "type": "function",
                     "function": {"name": self.function.name, "arguments": self.function.arguments}
                 }
-        
+
         return MockResponse([MockChoice(MockMessage(content="", tool_calls=[MockToolCall()]))])
-    
+
     # Turn 2: Model sees the tool result and returns final answer
     if call_count == 2:
         return MockResponse([MockChoice(MockMessage(content="The echo tool worked!", tool_calls=None))])
@@ -62,7 +62,7 @@ def test_seam():
         tool_names=["echo_tool"],
         system_prompt="You are a test specialist. Call the echo tool, then return a final answer."
     )
-    
+
     print(f"Testing adapter: {adapter.name}")
     print("Running specialist loop...")
     result = run_specialist(
@@ -72,7 +72,7 @@ def test_seam():
         model="mock-model",
         runs_dir=os.path.join(_REPO_ROOT, "tests", "runs")
     )
-    
+
     print(f"Specialist result: {result.outcome}")
     print(f"Turns used: {result.turns_used}")
     if result.outcome != "max_turns":

@@ -57,7 +57,8 @@ def extract_reference(models_py: str = PIPELINE_MODELS_PY) -> Dict:
     inputs: Dict[str, Dict] = {}
     args = fn.args.args
     defaults = fn.args.defaults
-    for arg, default in zip(args[len(args) - len(defaults):], defaults):
+    for arg, default in zip(args[len(args) - len(defaults):], defaults,
+                            strict=True):
         if not (isinstance(default, ast.Call) and getattr(default.func, "attr", None) == "Model"):
             continue
         table = _const(default.args[0]) if default.args else None

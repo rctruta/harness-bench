@@ -5,7 +5,6 @@ Every meaningful event during a run is emitted as one JSON line.
 import hashlib
 import json
 import os
-import re
 from datetime import datetime, timezone
 from typing import Any, Optional, Dict
 
@@ -160,7 +159,7 @@ class AgentTrace:
 
         role_suffix = f"_{role}" if role else ""
         run_id = f"{trace_prefix}{role_suffix}"
-        
+
         candidate, n = run_id, 1
         while candidate in AgentTrace._used_run_ids or os.path.exists(os.path.join(study_dir, f"{candidate}.jsonl")):
             n += 1

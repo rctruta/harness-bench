@@ -23,7 +23,7 @@ class MonolithResult:
 
 class MonolithDriver:
     """A generic, unspecialized agent loop."""
-    
+
     def __init__(self, adapter: TargetAdapter, goal: str, model: str,
                  runs_dir: str = "./agent_runs", system_preamble: Optional[str] = None,
                  hooks: Optional[list] = None, max_turns: int = 20):
@@ -41,7 +41,7 @@ class MonolithDriver:
             agents_md_loaded=False, max_turns=max_turns,
             runs_dir=runs_dir
         )
-        
+
     def run(self) -> MonolithResult:
         messages = []
         if self.system_preamble:
@@ -70,17 +70,17 @@ class MonolithDriver:
                 messages.append({"role": "system", "content": self.system_preamble})
         messages.append({"role": "user", "content": self.goal})
         tools = self.adapter.tools(neutral_descriptions=True)
-        
+
         turn = 0
         while turn < self.max_turns:
             turn += 1
-            
+
             # If no tools, just generate a raw response.
             # If tools exist, provide them to the model.
             kwargs = {}
             if tools:
                 kwargs["tools"] = tools
-                
+
             try:
                 # The generic completion call
                 response = litellm.completion(
@@ -163,7 +163,7 @@ class MonolithDriver:
                 return MonolithResult(
                     outcome="complete", analysis=final_text, run_id=self.trace.run_id
                 )
-                
+
         # Loop budget exhausted
         self.trace.run_end("exhausted", turns_used=turn)
         return MonolithResult(

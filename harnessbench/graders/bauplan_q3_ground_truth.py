@@ -28,7 +28,6 @@ by revenue, BUILDING segment, orders before 1995-03-15, ships after.
 """
 import json
 import os
-import re
 import sys
 from datetime import datetime, timezone
 

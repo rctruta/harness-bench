@@ -88,7 +88,7 @@ class Orchestrator:
     def run(self) -> OrchestratorResult:
         sub_ids: dict = {}
         librarian_role = self.roles.get("librarian")
-        
+
         if librarian_role:
             lib = run_specialist(self.adapter, librarian_role, brief=self.goal, model=self.model, runs_dir=self.runs_dir)
             sub_ids["librarian"] = lib.sub_run_id
@@ -119,7 +119,7 @@ class Orchestrator:
                 orchestrator_run_id=self.trace.run_id, sub_run_ids=sub_ids,
                 error="Target adapter does not define a 'config_builder' role."
             )
-            
+
         cb: SpecialistResult = run_specialist(self.adapter, config_builder_role, brief=self.goal, model=self.model, runs_dir=self.runs_dir)
         sub_ids["config_builder"] = cb.sub_run_id
         self.trace.delegate(
@@ -183,7 +183,7 @@ class Orchestrator:
                 orchestrator_run_id=self.trace.run_id, sub_run_ids=sub_ids,
                 error="Target adapter does not define an 'analyzer' role."
             )
-            
+
         analyzer_brief = (
             f"The experiment {exp_id} has completed. Original user goal: {self.goal}\n\n"
             "Produce the analysis."

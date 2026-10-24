@@ -14,7 +14,7 @@ poll_budget_seconds: 60
 
 goal: >
   Investigate how DuckDB performance scales on analytical aggregation
-  queries across small, medium, and large partitions. I want to know the 
+  queries across small, medium, and large partitions. I want to know the
   pairwise scaling factors for DuckDB on the analytical_wall suite.
 
 cells:

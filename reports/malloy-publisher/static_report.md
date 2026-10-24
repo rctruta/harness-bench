@@ -82,7 +82,7 @@ High overlap means description-based routing must distinguish near-identical tri
 ## Prevention-class skills (guidance that must act BEFORE the error)
 
 - **analysis-pitfalls** (~1,606 tok): Common data analysis pitfalls to watch for during query construction and result interpretation. Reference this checklist
-- **gotchas-modeling** (~2,929 tok): Common Malloy modeling mistakes and how to avoid them. Read BEFORE writing source definitions, dimensions, measures, or 
+- **gotchas-modeling** (~2,929 tok): Common Malloy modeling mistakes and how to avoid them. Read BEFORE writing source definitions, dimensions, measures, or
 - **gotchas-queries** (~1,246 tok): Common Malloy query and view mistakes. Read BEFORE writing views, queries, or notebooks. Covers chart constraints, aggre
 - **gotchas-rendering** (~960 tok): Common Malloy renderer annotation mistakes. Read BEFORE adding chart annotations, formatting tags, or building dashboard
 - **malloy-analysis** (~1,610 tok): Workflow for answering data questions against Malloy semantic models served by Publisher, using the malloy-publisher MCP

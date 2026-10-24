@@ -19,15 +19,15 @@ def _check_ollama_model(model_name: str) -> tuple[bool, str]:
     """Check if an ollama model is actually pulled locally."""
     import urllib.request
     import json
-    
+
     base_model = model_name.replace("ollama/", "")
-    
+
     try:
         req = urllib.request.Request("http://localhost:11434/api/tags")
         with urllib.request.urlopen(req, timeout=3) as response:
             data = json.loads(response.read().decode('utf-8'))
             models = [m["name"] for m in data.get("models", [])]
-            
+
             # Ollama lists models with their tags (e.g., 'phi3:latest')
             if base_model not in models and f"{base_model}:latest" not in models:
                 return False, f"Model '{base_model}' is not pulled in local Ollama. Run `ollama pull {base_model}`"
@@ -82,7 +82,7 @@ def check_environment(contract_path: str, target_name: str) -> dict:
     for model in models:
         try:
             litellm.validate_environment(model=model)
-            
+
             if model.startswith("ollama/"):
                 ok, err = _check_ollama_model(model)
                 if not ok:
@@ -127,17 +127,17 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
     study_name = os.path.splitext(os.path.basename(contract_path))[0]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     target_slug = slugify(alias) if alias else get_target_slug(target_name)
-    
+
     base_runs_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "runs"))
     # New structure: runs/{target_slug}/{timestamp}_{study_id}/{study_name}
     runs_dir = os.path.join(base_runs_dir, target_slug, f"{timestamp}_{study_id}", study_name)
     os.makedirs(runs_dir, exist_ok=True)
-    
+
     import shutil
     import json
-    
+
     shutil.copy(contract_path, os.path.join(runs_dir, "contract.yaml"))
-    
+
     meta = {
         "target": target_name,
         "study_id": study_id,
@@ -170,7 +170,7 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
             for rep in range(1, reps + 1):
                 model_slug = slugify(model)
                 os.environ["AGENT_TRACE_PREFIX"] = f"trace_{model_slug}_{cell}_r{rep}"
-                
+
                 flags = (contract["cells"].get(cell) or {}).get("flags", {}) if isinstance(contract["cells"], dict) else {}
                 system_preamble = None
                 inject = flags.get("inject_prompts")
@@ -273,7 +273,7 @@ def run_benchmark(contract_path: str, target_name: str, dry_run: bool = False,
                                    "hooks": flags.get("hooks") or []}
                     driver.trace.prompt_provenance(components={}, ablation_flags={
                         "architecture": architecture, **study_stamp})
-                    
+
                     result = driver.run()
                     outcomes[f"{model}_{cell}_{rep}"] = result.outcome
                 except Exception as e:

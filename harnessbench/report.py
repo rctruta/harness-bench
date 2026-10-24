@@ -9,12 +9,12 @@ def condition_label(flags: dict) -> str:
         return "pre-provenance"
     if flags.get("architecture") == "specialist":
         return f"specialist:{flags.get('role')}"
-    
+
     condition_keys = sorted(k for k in flags
                             if k not in ("architecture", "study_id", "cell", "rep", "role", "study_model"))
     if not condition_keys:
         return flags.get("architecture", "unknown")
-        
+
     short = ",".join(
         f"{k}={'Y' if flags[k] else 'N'}"
         for k in condition_keys)
@@ -100,15 +100,15 @@ def generate_report(graded_traces: List[Dict[str, Any]], allow_mock: bool = Fals
             else:
                 verdict = "N/A"
                 details = "-"
-                
+
             lines.append(f"| {run_id} | {mode_label} | {outcome} | {turns} | {tokens:,} | **{verdict}** | {details} |")
-            
+
         lines.append("")
-        
+
         # Summary stats
         successes = sum(1 for gt in group if gt.get("grade", {}).get("verdict") == "PASS")
         mean_tokens = sum(gt["markers"].get("tokens", 0) for gt in group) / len(group) if group else 0
         lines.append(f"**Summary:** {successes}/{len(group)} passed. Mean tokens: {mean_tokens:,.0f}")
         lines.append("")
-        
+
     return "\n".join(lines)

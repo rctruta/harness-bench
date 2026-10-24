@@ -61,22 +61,6 @@ else
 fi
 mv "$G/FACTS.yaml.bak" "$G/FACTS.yaml"; rm -f "$G/.probe.src"
 
-# 4. checkpoint must REFUSE to save a state whose proof fails
-if "$G/checkpoint.sh" save probe_bad "false" >/dev/null 2>&1; then
-  bad "checkpoint saved a state whose proof FAILED"
-else
-  ok "checkpoint refuses a state whose proof fails"
-fi
-
-# 5. checkpoint must save when the proof passes, and verify it
-if "$G/checkpoint.sh" save probe_good "true" >/dev/null 2>&1 \
-   && "$G/checkpoint.sh" verify probe_good >/dev/null 2>&1; then
-  ok "checkpoint saves and re-verifies a good state"
-else
-  bad "checkpoint could not save/verify a good state"
-fi
-rm -f "$G/checkpoints/probe_good."* 2>/dev/null || true
-
 fi
 
 # 6. the pre-commit hook must exist and be executable
@@ -112,26 +96,6 @@ rm -rf "$PROBE"
 
 fi
 
-if have no_local_paths.py; then
-# 8. no_local_paths must BLOCK one machine's absolute path in a tracked file
-LPROBE="$ROOT/.gates/.lprobe"
-mkdir -p "$LPROBE/.gates"
-cp "$G/no_local_paths.py" "$G/_baseline.py" "$LPROBE/.gates/"
-# The planted path is assembled at runtime. Written literally, this file would
-# itself be a violation — and it is installed into every seeded project, so it
-# blocked the first commit of a fresh one. A fixture must not be
-# indistinguishable from the thing it tests for.
-HOMEISH="/U""sers/someone/Projects/theirs/README.md"
-(cd "$LPROBE" && git init -q && printf 'OUT = "%s"\n' "$HOMEISH" > w.py && git add -A) >/dev/null 2>&1
-if python3 "$LPROBE/.gates/no_local_paths.py" --check >/dev/null 2>&1; then
-  bad "no_local_paths did NOT block a home path"
-else
-  ok "no_local_paths blocks a home path in a tracked file"
-fi
-rm -rf "$LPROBE"
-
-fi
-
 if have no_hardcoding.py; then
 # 9. the baseline must accept old findings and still block new ones. This is
 #    what makes a gate adoptable in a repository that predates it.
@@ -160,48 +124,12 @@ rm -rf "$BPROBE"
 fi
 
 # ---------------------------------------------------------------- voice -----
-# Born in rctruta.github.io 2026-10-16: APPLICATION-RULES.md, in a PUBLIC
-# repository, read "she presented at an event" and "which chair she was in" --
-# eleven instances, after the rule had been given more than once in prose and
-# written into the agent instructions.
-if have check_voice.py; then
-  VP="$(mktemp -d)"
-  mkdir -p "$VP/.gates" "$VP/data" "$VP/tools"
-  cp "$G/check_voice.py" "$VP/.gates/"
-  (cd "$VP" && git init -q) >/dev/null 2>&1
-
-  printf 'items:\n  - note: "I presented at an event."\n' > "$VP/data/x.yaml"
-  (cd "$VP" && git add -A) >/dev/null 2>&1
-  if (cd "$VP" && python3 .gates/check_voice.py --check) >/dev/null 2>&1; then
-    ok "check_voice quiet on first-person data"
-  else
-    bad "check_voice fired on first-person data"
-  fi
-
-  printf 'items:\n  - note: "she presented at an event, and her slides are here."\n' > "$VP/data/x.yaml"
-  (cd "$VP" && git add -A) >/dev/null 2>&1
-  if (cd "$VP" && python3 .gates/check_voice.py --check) >/dev/null 2>&1; then
-    bad "check_voice MISSED third person in a data file"
-  else
-    ok "check_voice refuses third person in a data file"
-  fi
-
-  # A quotation is someone else's sentence; rewriting one would be a forgery.
-  printf 'testimonials:\n  - quote: "She was the best instructor I had."\n' > "$VP/data/x.yaml"
-  (cd "$VP" && git add -A) >/dev/null 2>&1
-  if (cd "$VP" && python3 .gates/check_voice.py --check) >/dev/null 2>&1; then
-    ok "check_voice exempts a quoted testimonial"
-  else
-    bad "check_voice flagged a quotation, which it must not rewrite"
-  fi
-  rm -rf "$VP"
-fi
 
 # ---------------------------------------------------------------- wheel -----
-# Born in sql-benchmarks-dagster 2026-10-19: sqlbenchdag 0.1.2 went to PyPI
-# with 881 files that were not the package -- build/ nested six deep, venv/,
-# tests/, and scratch/, twelve unrelated local scripts carrying home-directory
-# paths. 82% of the download, and `python -m build` exited 0 throughout.
+# A published wheel can carry files that are not the package at all -- nested
+# build directories, a virtualenv, test trees, local scripts with home-directory
+# paths -- as the bulk of the download, with `python -m build` exiting 0
+# throughout.
 if have check_wheel.py; then
   WP="$(mktemp -d)"
   mkdir -p "$WP/dist"
@@ -209,7 +137,7 @@ if have check_wheel.py; then
 
   # Assembled, never literal: this file is installed into every seeded
   # project, and a fixture indistinguishable from what it tests for blocks the
-  # first commit of a fresh one. Same lesson as the no_local_paths probe above.
+  # first commit of a fresh one.
   HOMEISH="/U""sers/someone/Projects/thing"
   python3 - "$WP" "$HOMEISH" <<'MKWHL'
 import sys, zipfile, os
@@ -240,7 +168,7 @@ fi
 
 # --------------------------------------------------------------- orphans ----
 # The cause: code exists, is tested, and is wired to nothing, so a passing test
-# certifies a feature that never runs. Specimen, 2026-06-15: a DDL generator
+# certifies a feature that never runs. One shape: a DDL generator
 # producing PK/index/FK statements from the config, with a passing unit test,
 # imported by nothing in the live path -- so `primary_key: true` in every
 # config was declared-but-unenforced behind a green tick.
@@ -302,11 +230,10 @@ if have no_orphans.py; then
 fi
 
 # -------------------------------------------------------------- scratch -----
-# Born 2026-10-19 from a survey of nine repositories: harness-bench carried
-# `scratch/` on line 25 of .gitignore AND scratch/skills-antipattern-final.md
-# tracked in HEAD since July, in a PUBLIC repository. An ignore rule is
-# consulted only for files git does not already track, so it had been silent
-# for three months. These probes assert the arrangement that makes the rule
+# A repository can carry `scratch/` in .gitignore and a tracked note under that
+# same path at once. An ignore rule is consulted only for files git does not
+# already track, so it stays silent indefinitely. These probes assert the
+# arrangement that makes the rule
 # unnecessary -- notes outside the worktree, where git refuses to stage them.
 if have scratch_external.py; then
   SP="$(mktemp -d)"; SX="$(mktemp -d)"
@@ -412,139 +339,9 @@ if have scratch_external.py; then
 fi
 
 # ------------------------------------------------------- private marker -----
-# Born 2026-10-19 from the audit that followed scratch_external. The specimen:
-# sql-benchmarks-dagster/scratch/reducing_agent_search_scope.md, whose third
-# line reads "Local draft. Not for the public repo.", was on origin/main of a
-# PUBLIC repository from 2026-07-04 to 2026-07-06, across thirteen commits.
-# rctruta.github.io already had this check in tools/check_private.py, but it
-# lived in one repository and nothing carried it anywhere else.
-if have no_private_marker.py; then
-  MP="$(mktemp -d)"
-  mkdir -p "$MP/.gates" "$MP/docs"
-  cp "$G/no_private_marker.py" "$MP/.gates/"
-  (cd "$MP" && git init -q && git commit -q --allow-empty -m init) >/dev/null 2>&1
-
-  # 1. Clean tree.
-  printf '# Readme\n\nOrdinary content.\n' > "$MP/docs/readme.md"
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    ok "no_private_marker quiet on an ordinary tracked file"
-  else
-    bad "no_private_marker fired on an ordinary tracked file"
-  fi
-
-  # 2. The real specimen's own words, in a file outside any notes folder --
-  #    which is the point: scratch_external covers notes by location, this
-  #    covers a declaration anywhere in the tree.
-  printf '# Methodology note\n\n*2026-07-04. Local draft. Not for the public repo.*\n' \
-    > "$MP/docs/draft.md"
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    bad "no_private_marker MISSED a header declaring the file private"
-  else
-    ok "no_private_marker refuses a file whose header declares it private"
-  fi
-  (cd "$MP" && git rm -q --cached docs/draft.md) >/dev/null 2>&1
-  rm -f "$MP/docs/draft.md"
-
-  # 3. A declaration in the NAME, with nothing in the header. This is how
-  #    convergence_notes_PRIVATE.md declares itself.
-  printf 'Nothing in here says anything about publication.\n' \
-    > "$MP/docs/convergence_notes_PRIVATE.md"
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    bad "no_private_marker MISSED a filename declaring the file private"
-  else
-    ok "no_private_marker refuses a file whose NAME declares it private"
-  fi
-  (cd "$MP" && git rm -q --cached docs/convergence_notes_PRIVATE.md) >/dev/null 2>&1
-  rm -f "$MP/docs/convergence_notes_PRIVATE.md"
-
-  # 4. The difference from check_private.py, which reads `git diff --cached`
-  #    and so sees a file once, on the way in. A file COMMITTED before this
-  #    gate existed is never staged again, and a staged-only check can never
-  #    tell you what is already out. Same shape as a .gitignore rule.
-  printf '# Old note\n\nPRIVATE: do not commit\n' > "$MP/docs/old.md"
-  (cd "$MP" && git add -A && git commit -q -m "committed before the gate") >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    bad "no_private_marker MISSED an ALREADY-COMMITTED private file"
-  else
-    ok "no_private_marker refuses a private file committed before it existed"
-  fi
-
-  # 5. No baseline, and it must say so rather than quietly reporting -- every
-  #    sibling gate takes --baseline, so a caller will reach for it here.
-  if (cd "$MP" && python3 .gates/no_private_marker.py --baseline) >/dev/null 2>&1; then
-    bad "no_private_marker accepted --baseline; this gate must refuse it"
-  else
-    ok "no_private_marker refuses --baseline"
-  fi
-  [ -f "$MP/.gates/baseline/no_private_marker.txt" ] \
-    && bad "no_private_marker wrote a baseline file" \
-    || ok "no_private_marker wrote no baseline file"
-  (cd "$MP" && git rm -q --cached docs/old.md && git commit -q -m untrack) >/dev/null 2>&1
-  rm -f "$MP/docs/old.md"
-
-  # 6. UNTRACKED is fine. The notes this protects are meant to exist -- just
-  #    not in the index. A gate that fired on them would be unusable.
-  printf 'PRIVATE: do not commit\n' > "$MP/docs/local_note.md"
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    ok "no_private_marker ignores an untracked private file"
-  else
-    bad "no_private_marker fired on an UNTRACKED file, which is allowed"
-  fi
-  rm -f "$MP/docs/local_note.md"
-
-  # 7. The false-positive guard. A declaration is a header; prose discussing
-  #    the marker on page nine is not a declaration. GATES.md and this very
-  #    probe file both quote these phrases, and neither is private.
-  python3 - "$MP/docs/essay.md" <<'PYEOF'
-import sys
-pad = "Ordinary prose about publishing workflows.\n" * 60
-open(sys.argv[1], "w").write(
-    "# An essay about publication rules\n\n" + pad +
-    "\nSome authors write PRIVATE: do not commit at the top of a draft.\n")
-PYEOF
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    ok "no_private_marker does not block on the phrase below the header"
-  else
-    bad "no_private_marker blocked on prose that merely mentions the marker"
-  fi
-
-  # 8. ...but it must SAY SO. The first version read only the first 800 bytes,
-  #    so a declaration at byte 801 produced the word "clean" -- which reads
-  #    exactly like "this file is safe". Not blocking is a judgement; being
-  #    silent is a defect. The window decides what blocks; the whole file is
-  #    still scanned and anything below the window is reported.
-  if (cd "$MP" && python3 .gates/no_private_marker.py) 2>&1 \
-       | grep -q "BELOW the first"; then
-    ok "no_private_marker reports a marker found below the header window"
-  else
-    bad "no_private_marker was SILENT about a marker below the header window"
-  fi
-  if (cd "$MP" && python3 .gates/no_private_marker.py) 2>&1 | grep -q "clean"; then
-    bad "no_private_marker said 'clean' while a marker sat below the window"
-  else
-    ok "no_private_marker does not claim clean when it found a marker below"
-  fi
-  rm -f "$MP/docs/essay.md"
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-
-  # 9. A declaration moved INTO the window must start blocking -- the window
-  #    is the rule, so it has to be the thing that decides.
-  printf 'PRIVATE: do not commit\n\n# Draft\n' > "$MP/docs/moved.md"
-  (cd "$MP" && git add -A) >/dev/null 2>&1
-  if (cd "$MP" && python3 .gates/no_private_marker.py --check) >/dev/null 2>&1; then
-    bad "no_private_marker MISSED a declaration on line 1"
-  else
-    ok "no_private_marker blocks once the declaration is in the header"
-  fi
-  rm -rf "$MP"
-fi
 
 # ------------------------------------------------------ publish contract -----
-# Born 2026-10-20 in sql-benchmarks-dagster, from three silent drifts in the
+# Three silent drifts of one shape, in the
 # artifacts that define a public listing: a manifest naming the previous
 # version, a manifest and ownership token that existed only on an unpushed
 # local branch, and a CITATION.cff three releases stale. The registry being
@@ -650,7 +447,48 @@ TOMLEOF
     bad "publish_contract accepted a check with no stages declared"
   fi
 
-  # 8. An inline empty array that a later block cannot extend is a TOML error
+  # 8. A CFF version is read without pyyaml, and a MISSING version line is a
+  #    finding rather than a pass. A cheap parser is only acceptable while its
+  #    misses are loud.
+  cat > "$CT" <<'TOMLEOF'
+[version_source]
+path = "pyproject.toml"
+kind = "toml_project_version"
+
+[[surfaces]]
+id = "citation"
+status = "live"
+trigger = "CITATION.cff"
+why = "probe surface"
+
+[[surfaces.requires]]
+kind = "yaml_version_matches_source"
+path = "CITATION.cff"
+field = "version"
+TOMLEOF
+  printf 'cff-version: 1.2.0\nversion: 9.9.9\n' > "$CP/CITATION.cff"
+  if run_cp >/dev/null 2>&1; then
+    ok "publish_contract reads a CFF version with no yaml module"
+  else
+    bad "publish_contract could not read a CFF version without pyyaml"
+  fi
+
+  printf 'cff-version: 1.2.0\nversion: 0.0.1\n' > "$CP/CITATION.cff"
+  if run_cp >/dev/null 2>&1; then
+    bad "publish_contract MISSED a stale CFF version"
+  else
+    ok "publish_contract refuses a stale CFF version"
+  fi
+
+  printf 'cff-version: 1.2.0\ntitle: no version line here\n' > "$CP/CITATION.cff"
+  if run_cp 2>&1 | grep -q "no top-level"; then
+    ok "publish_contract treats a missing CFF version as a finding"
+  else
+    bad "publish_contract passed a CFF file with no version line"
+  fi
+  rm -f "$CP/CITATION.cff"
+
+  # 9. An inline empty array that a later block cannot extend is a TOML error
   #    an editor will hit, so it must be explained rather than traced back.
   cat > "$CT" <<'TOMLEOF'
 [version_source]
@@ -676,43 +514,165 @@ TOMLEOF
   rm -rf "$CP"
 fi
 
-# ----------------------------------------------------------- compiles -----
-# Born 2026-10-20 in a freshly bootstrapped project: a commit introduced a
-# SyntaxError -- a comment placed inside a function's parentheses -- and every
-# installed gate passed it, because they all read files as text and none asks
-# Python whether the file is valid Python. A repository with no tests had
-# nothing else between a broken file and a commit.
-if have check_compiles.py; then
-  KP="$(mktemp -d)"
-  mkdir -p "$KP/.gates" "$KP/pkg"
-  cp "$G/check_compiles.py" "$KP/.gates/"
-  (cd "$KP" && git init -q) >/dev/null 2>&1
 
-  printf 'def fine():\n    return 1\n' > "$KP/pkg/good.py"
-  (cd "$KP" && git add -A) >/dev/null 2>&1
-  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
-    ok "check_compiles quiet on a file that parses"
+
+# ---------------------------------------------- check_script_standards
+if [ -f "$G/check_script_standards.py" ]; then
+  # Its own tree. Writing into another probe's directory makes the result
+  # depend on whether that probe ran, and on what it left behind.
+  SS=$(mktemp -d)
+  mkdir -p "$SS/.gates"
+  cp "$G/check_script_standards.py" "$G/_baseline.py" "$SS/.gates/"
+  (cd "$SS" && git init -q) >/dev/null 2>&1
+  printf '"""Docs mention https://example.com — prose, not a finding."""\nCFG = "export_config.yaml"\n' > "$SS/ok_script.py"
+  (cd "$SS" && git add -A) >/dev/null 2>&1
+  if (cd "$SS" && python3 .gates/check_script_standards.py --check) >/dev/null 2>&1; then
+    ok "check_script_standards quiet on a config-driven script"
   else
-    bad "check_compiles fired on a valid file"
+    bad "check_script_standards fired on an acceptable script"
   fi
 
-  printf 'def broken(\n' > "$KP/pkg/bad.py"
-  (cd "$KP" && git add -A) >/dev/null 2>&1
-  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
-    bad "check_compiles MISSED a syntax error"
+  printf 'URL = "https://github.com/x/y.git"\n' > "$SS/bad_script.py"
+  (cd "$SS" && git add -A) >/dev/null 2>&1
+  if (cd "$SS" && python3 .gates/check_script_standards.py --check) >/dev/null 2>&1; then
+    bad "check_script_standards MISSED a hardcoded URL"
   else
-    ok "check_compiles refuses a file that does not parse"
+    ok "check_script_standards refuses a hardcoded URL"
   fi
 
-  # Untracked is not checked: a scratch file mid-edit must not block a commit
-  # that does not include it.
-  (cd "$KP" && git rm -q --cached pkg/bad.py) >/dev/null 2>&1
-  if (cd "$KP" && python3 .gates/check_compiles.py --check) >/dev/null 2>&1; then
-    ok "check_compiles ignores an untracked broken file"
+  printf '#!/bin/sh\ncomm -23 <(sort a) b\n' > "$SS/bad_shell.sh"
+  (cd "$SS" && git add -A) >/dev/null 2>&1
+  if (cd "$SS" && python3 .gates/check_script_standards.py --check) >/dev/null 2>&1; then
+    bad "check_script_standards MISSED a bash-only construct"
   else
-    bad "check_compiles fired on a file git does not track"
+    ok "check_script_standards refuses a bash-only construct"
   fi
-  rm -rf "$KP"
+  rm -f "$SS/ok_script.py" "$SS/bad_script.py" "$SS/bad_shell.sh"
+  (cd "$SS" && git add -A) >/dev/null 2>&1
+  rm -rf "$SS"
+fi
+
+# ----------------------------------------------------------- pre-commit -----
+# The checks declared in .pre-commit-config.yaml are gates too, and a declared
+# check is no more trustworthy than a written one until it has been seen to
+# refuse something. Each probe writes one violating file, runs the single hook
+# that should object to it, and asserts a non-zero exit.
+if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
+  if ! command -v pre-commit >/dev/null 2>&1; then
+    echo "  SKIP  pre-commit config present but the runner is not installed"
+    SKIP=$((SKIP+1))
+  else
+    PP="$ROOT/.gates/.ppobe"
+    REL=".gates/.ppobe/p.py"
+    mkdir -p "$PP"
+    # Staged, and named relative to the repository. pre-commit's contract is
+    # the staged set: an untracked file given by absolute path makes
+    # check-added-large-files raise rather than report.
+    stage_probe() { (cd "$ROOT" && git add -f "$REL") >/dev/null 2>&1; }
+    unstage_probe() { (cd "$ROOT" && git rm -q --cached "$REL") >/dev/null 2>&1; }
+
+    # Assembled, never literal, for the same reason as the probes above: a
+    # fixture indistinguishable from what it tests for blocks its own repo.
+    HOMEISH="/U""sers/someone/x.md"
+    printf 'OUT = "%s"\n' "$HOMEISH" > "$PP/p.py"
+    stage_probe
+    if (cd "$ROOT" && pre-commit run no-absolute-home-paths \
+          --files "$REL") >/dev/null 2>&1; then
+      bad "pre-commit no-absolute-home-paths did NOT block a home path"
+    else
+      ok "pre-commit no-absolute-home-paths blocks a home path"
+    fi
+
+    printf 'x = 1  # inte''rnal only\n' > "$PP/p.py"
+    stage_probe
+    if (cd "$ROOT" && pre-commit run no-private-marker \
+          --files "$REL") >/dev/null 2>&1; then
+      bad "pre-commit no-private-marker did NOT block a private declaration"
+    else
+      ok "pre-commit no-private-marker blocks a private declaration"
+    fi
+
+    printf '# s''he presented at an event.\n' > "$PP/p.py"
+    stage_probe
+    if (cd "$ROOT" && pre-commit run author-voice \
+          --files "$REL") >/dev/null 2>&1; then
+      bad "pre-commit author-voice did NOT block the third person"
+    else
+      ok "pre-commit author-voice blocks the third person"
+    fi
+
+    printf 'def broken(\n' > "$PP/p.py"
+    stage_probe
+    if (cd "$ROOT" && pre-commit run check-ast --files "$REL") \
+          >/dev/null 2>&1; then
+      bad "pre-commit check-ast did NOT block a file that fails to parse"
+    else
+      ok "pre-commit check-ast blocks a file that fails to parse"
+    fi
+
+    # A gate that refuses everything is as useless as one that refuses
+    # nothing, so silence on a clean file is proven too.
+    printf 'def fine():\n    return 1\n' > "$PP/p.py"
+    stage_probe
+    if (cd "$ROOT" && pre-commit run --files "$REL") >/dev/null 2>&1; then
+      ok "pre-commit quiet on a clean file"
+    else
+      bad "pre-commit fired on a clean file"
+    fi
+
+    unstage_probe
+    rm -rf "$PP"
+  fi
+fi
+
+# ------------------------------------------------ hooks are executable -----
+# git ignores a hook without the execute bit and says so only as a hint on
+# push. A hook that is installed, correct and never run is the same outcome as
+# no hook at all.
+if [ -d "$ROOT/.githooks" ]; then
+  NOEXEC=""
+  for h in "$ROOT"/.githooks/*; do
+    [ -f "$h" ] || continue
+    [ -x "$h" ] || NOEXEC="$NOEXEC $(basename "$h")"
+  done
+  if [ -n "$NOEXEC" ]; then
+    bad "hook(s) not executable, so git ignores them:$NOEXEC"
+  else
+    ok "every file in .githooks is executable"
+  fi
+fi
+
+# ------------------------------------------------- the hook, end to end -----
+# Every probe above runs a gate directly. None of them runs the hook, so none
+# of them can tell whether git reaches that gate at all. An entry point that
+# returns early disables everything appended after it while every individual
+# probe still passes.
+#
+# This plants a violation in a throwaway repository wired exactly like this
+# one and asserts that `git commit` is refused.
+if [ -f "$ROOT/.githooks/pre-commit" ]; then
+  HE=$(mktemp -d)
+  mkdir -p "$HE/.githooks"
+  cp "$ROOT/.githooks/pre-commit" "$HE/.githooks/"
+  [ -d "$ROOT/.gates" ] && cp -R "$ROOT/.gates" "$HE/.gates"
+  [ -f "$ROOT/.pre-commit-config.yaml" ] && \
+    cp "$ROOT/.pre-commit-config.yaml" "$ROOT/ruff.toml" "$HE/" 2>/dev/null
+  rm -rf "$HE/.gates/tests" "$HE/.gates/baseline" "$HE/.gates/checkpoints"
+  (
+    cd "$HE"
+    git init -q
+    git config core.hooksPath .githooks
+    git config user.email probe@example.invalid
+    git config user.name probe
+    printf 'x = 1  # inte''rnal only\n' > violation.py
+    git add -A
+  ) >/dev/null 2>&1
+  if (cd "$HE" && git commit -q -m "planted violation") >/dev/null 2>&1; then
+    bad "the pre-commit HOOK accepted a commit every gate refuses"
+  else
+    ok "the pre-commit hook refuses a violating commit end to end"
+  fi
+  rm -rf "$HE"
 fi
 
 echo

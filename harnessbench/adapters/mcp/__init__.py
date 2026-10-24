@@ -4,7 +4,6 @@ Bridges an arbitrary MCP server (via stdio) to the `TargetAdapter` protocol.
 This allows harness-bench to execute the Monolith Baseline against any MCP server.
 """
 import asyncio
-import json
 import threading
 from typing import Dict, List, Optional, Callable
 
@@ -28,18 +27,18 @@ class McpAdapter(TargetAdapter):
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        
+
         self._tools_cache: Optional[List[dict]] = None
         self._ready_event = threading.Event()
         self._error = None
-        
+
         # Start the MCP connection asynchronously
         asyncio.run_coroutine_threadsafe(self._connect(), self._loop)
         self._ready_event.wait(timeout=15.0)
-        
+
         if self._error:
             raise RuntimeError(f"Failed to connect to MCP server: {self._error}")
-            
+
     def _run_loop(self):
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
@@ -58,10 +57,10 @@ class McpAdapter(TargetAdapter):
                 )
                 self._transport_cm = stdio_client(server_params)
                 self._read_stream, self._write_stream = await self._transport_cm.__aenter__()
-            
+
             self._session_cm = ClientSession(self._read_stream, self._write_stream)
             self._session = await self._session_cm.__aenter__()
-            
+
             await self._session.initialize()
             self._ready_event.set()
         except Exception as e:
@@ -82,14 +81,14 @@ class McpAdapter(TargetAdapter):
     def tools(self, neutral_descriptions: bool = False) -> List[dict]:
         if self._tools_cache is not None:
             return self._tools_cache
-            
+
         async def _fetch():
             res = await self._session.list_tools()
             return res.tools
-            
+
         future = asyncio.run_coroutine_threadsafe(_fetch(), self._loop)
         mcp_tools = future.result(timeout=10.0)
-        
+
         litellm_tools = []
         for t in mcp_tools:
             litellm_tools.append({
@@ -107,10 +106,10 @@ class McpAdapter(TargetAdapter):
         async def _exec():
             res = await self._session.call_tool(name, arguments=args)
             return res.content
-            
+
         future = asyncio.run_coroutine_threadsafe(_exec(), self._loop)
         content_items = future.result(timeout=60.0)
-        
+
         # content is a list of TextContent/ImageContent etc.
         # We naively serialize it to string for the LLM.
         texts = []
