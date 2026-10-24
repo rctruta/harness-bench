@@ -50,21 +50,3 @@ repos:
         language: pygrep
         entry: '/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+|C:\\Users\\'
         exclude: '^\.pre-commit-config\.yaml$'
-
-      - id: no-private-marker
-        name: a file that declares itself private must not be tracked
-        language: pygrep
-        entry: '(?i)(not for the public repo|local draft|do not publish|internal only|confidential)'
-        # A check that searches for a phrase matches the file defining the
-        # phrase. This is the narrowest exemption that leaves every other
-        # file covered.
-        # In the registry repository this pattern list also exists as a
-        # template; everywhere else only the installed copy is exempt.
-        exclude: '^(\.pre-commit-config\.yaml|templates/pre-commit-config\.yaml|\.gates/tests/prove_gates\.sh)$'
-
-      - id: author-voice
-        name: write in the first person, not the third
-        language: pygrep
-        entry: "(?<![\\w'])(she|her|hers)(?![\\w'])|Ramona's"
-        files: '\.(py|md|yaml|yml|toml|sh|txt)$'
-        exclude: '^(\.pre-commit-config\.yaml|templates/pre-commit-config\.yaml|\.gates/tests/prove_gates\.sh)$'

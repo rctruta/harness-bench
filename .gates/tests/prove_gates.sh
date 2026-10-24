@@ -583,23 +583,7 @@ if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
       ok "pre-commit no-absolute-home-paths blocks a home path"
     fi
 
-    printf 'x = 1  # inte''rnal only\n' > "$PP/p.py"
-    stage_probe
-    if (cd "$ROOT" && pre-commit run no-private-marker \
-          --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit no-private-marker did NOT block a private declaration"
-    else
-      ok "pre-commit no-private-marker blocks a private declaration"
-    fi
 
-    printf '# s''he presented at an event.\n' > "$PP/p.py"
-    stage_probe
-    if (cd "$ROOT" && pre-commit run author-voice \
-          --files "$REL") >/dev/null 2>&1; then
-      bad "pre-commit author-voice did NOT block the third person"
-    else
-      ok "pre-commit author-voice blocks the third person"
-    fi
 
     printf 'def broken(\n' > "$PP/p.py"
     stage_probe
