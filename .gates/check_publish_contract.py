@@ -111,8 +111,10 @@ def parse_contract(text):
                     "`checks = []` left in place.\nTOML makes an inline array "
                     "immutable, so a later [[surfaces.requires]]\nblock cannot "
                     "extend it. Delete the inline line and keep the blocks.")
+        # from None: the parser's own message is already quoted above, and a
+        # second traceback under it hides the hint that explains the fix.
         raise SystemExit(f"check_publish_contract: {CONTRACT.name} is not "
-                         f"valid TOML: {exc}{hint}")
+                         f"valid TOML: {exc}{hint}") from None
     global VERSION_SOURCE
     declared = data.get("version_source")
     if declared:
@@ -158,9 +160,9 @@ def source_version(spec):
         v = _json.loads(text).get("version")
         return str(v) if v else _fail(path)
     elif kind == "yaml_version":
-        import yaml as _yaml
-        v = (_yaml.safe_load(text) or {}).get("version")
-        return str(v) if v else _fail(path)
+        # Same reasoning as above: no pyyaml, and a miss is loud.
+        m = re.search(r'^version:\s*["\']?([^"\'\s#]+)', text, re.M)
+        return m.group(1) if m else _fail(path)
     else:
         raise SystemExit(f"check_publish_contract: version_source kind "
                          f"{kind!r} is not implemented. Known: "
@@ -206,14 +208,24 @@ def check_requirement(surface_id, req):
                            + (f" — {req['because']}" if req.get("because") else ""))
 
     elif kind == "yaml_version_matches_source":
-        # CITATION.cff is YAML. Read with pyyaml rather than a regex, because
-        # a regex that misses the field reports "clean" instead of "unknown".
-        import yaml
+        # CITATION.cff is YAML, and a gate here must not import pyyaml: this
+        # runs in a release job and in freshly bootstrapped repositories that
+        # have installed nothing. A regex that MISSES the field would report
+        # "clean" instead of "unknown", which is the worse failure -- so the
+        # field is matched at line start and its absence is a finding, never a
+        # pass. That is the whole difference between a cheap parser being
+        # acceptable and being a liability.
         target = ROOT / path
         if not target.is_file():
             return [f"{surface_id}: {path} is missing, so its version cannot be checked"]
-        data = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
-        got = str(data.get(req.get("field", "version"), ""))
+        field = req.get("field", "version")
+        m = re.search(rf'^{re.escape(field)}:\s*["\']?([^"\'\s#]+)',
+                      target.read_text(encoding="utf-8"), re.M)
+        if not m:
+            return [f"{surface_id}: {path} has no top-level {field!r} line. "
+                    f"It is required here, so its absence is a finding rather "
+                    f"than a pass."]
+        got = m.group(1)
         want = source_version(VERSION_SOURCE)
         if got != want:
             out.append(f"{surface_id}: {path} {req.get('field','version')} is "

@@ -28,3 +28,7 @@ data/
 
 # Local notes: a symlink outside the worktree. See .gates/scratch_external.py
 scratch
+
+# The outbound term list is deliberately untracked: a committed list of
+# unpublished work publishes what it protects.
+.gates/outbound_private.txt

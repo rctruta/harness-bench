@@ -84,8 +84,8 @@ def extract_generic_markers(path: str) -> Dict[str, Any]:
 def extract_markers(path: str, adapter: TargetAdapter) -> Dict[str, Any]:
     """Extract generic markers and supplement with target-specific markers."""
     base = extract_generic_markers(path)
-    
+
     for marker_name, extractor in adapter.markers().items():
         base[marker_name] = extractor(path)
-        
+
     return base

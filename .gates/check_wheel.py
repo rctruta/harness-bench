@@ -36,8 +36,8 @@ import zipfile
 
 PACKAGE = "sql_benchmarks"
 # Split so this file is not itself a finding. It is installed into every
-# seeded project, and no_local_paths.py scans it -- a detector that trips
-# its sibling detector blocks the first commit of a fresh repository.
+# seeded project, and the no-absolute-home-paths hook scans it -- a detector
+# that trips its sibling detector blocks the first commit of a fresh repo.
 HOME_PATH = re.compile(rb"/U" rb"sers/[A-Za-z0-9._-]+|/h" rb"ome/[A-Za-z0-9._-]+")
 TEXT_EXT = (".py", ".md", ".txt", ".yaml", ".yml", ".json", ".sh", ".cfg", ".toml")
 

@@ -121,7 +121,7 @@ def run_specialist(adapter: TargetAdapter, role: SpecialistRole, brief: str, mod
     """Run one specialist to completion. Returns a structured result."""
     # Filter tools from adapter based on role.tool_names
     tools = [t for t in adapter.tools() if t["function"]["name"] in role.tool_names]
-    
+
     trace = AgentTrace(
         goal=f"[specialist:{role.name}] {brief}",
         model=model,
@@ -147,9 +147,8 @@ def run_specialist(adapter: TargetAdapter, role: SpecialistRole, brief: str, mod
         {"role": "user", "content": brief},
     ]
     empty_in_a_row = 0
-    last_content = ""
-    failing_call_counts: dict = {}  
-    succeeded_tools: set = set()  
+    failing_call_counts: dict = {}
+    succeeded_tools: set = set()
 
     for turn in range(1, role.max_turns + 1):
         trace.turn_start(turn)
@@ -165,7 +164,6 @@ def run_specialist(adapter: TargetAdapter, role: SpecialistRole, brief: str, mod
         msg = response.choices[0].message
         content = msg.content or ""
         tool_calls = msg.tool_calls or []
-        last_content = content
 
         recovery_reason = None
         if not tool_calls:

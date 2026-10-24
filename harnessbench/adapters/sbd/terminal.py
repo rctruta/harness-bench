@@ -34,4 +34,4 @@ def healthcheck() -> None:
         r = client.get("/health", timeout=5.0)
         r.raise_for_status()
     except Exception as e:
-        raise RuntimeError(f"SBD backend is not reachable. Is it running? Error: {e}")
+        raise RuntimeError(f"SBD backend is not reachable. Is it running? Error: {e}") from e

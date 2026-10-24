@@ -4,7 +4,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-import pytest
 from harnessbench.registry import load_adapter
 
 def test_bauplan_adapter_tools_and_gates():
@@ -37,7 +36,7 @@ def test_bauplan_adapter_tools_and_gates():
 
 def test_bauplan_workflow_execution():
     adapter = load_adapter("bauplan_lakehouse")
-    
+
     # 1. Checkout
     r1 = adapter.execute_tool("bauplan_checkout_branch", {"branch_name": "ramona.feature-etl"})
     assert "ramona.feature-etl" in r1

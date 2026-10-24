@@ -62,4 +62,3 @@ python -m harnessbench.cli run contracts/malloy_abl_count.yaml \
   --target mcp:http:http://localhost:4040/mcp --no-grade
 python scripts/malloy_dynamic_report.py
 ```
-

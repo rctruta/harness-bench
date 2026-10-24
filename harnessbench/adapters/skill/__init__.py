@@ -72,7 +72,7 @@ class SkillAdapter(TargetAdapter):
     def execute_tool(self, name: str, args: dict) -> str:
         """Execute the bash or read_file tools."""
         cwd = os.getenv("TARGET_SKILL_DIR")
-        
+
         if name == "run_command":
             cmd = args.get("command")
             if not cmd:
@@ -93,30 +93,30 @@ class SkillAdapter(TargetAdapter):
                 return output if output else "Command executed successfully with no output."
             except Exception as e:
                 return f"Error executing command: {str(e)}"
-                
+
         elif name == "read_file":
             path = args.get("path")
             if not path:
                 return "Error: missing 'path' argument."
-            
+
             # Sanitize path to be relative to cwd if not absolute
             if os.path.isabs(path):
                 full_path = path
             else:
                 full_path = os.path.join(cwd, path)
-            
+
             try:
                 with open(full_path, "r", encoding="utf-8") as f:
                     return f.read()
             except Exception as e:
                 return f"Error reading file {path} (resolved to {full_path}): {str(e)}"
-                
+
         # If somehow an unexpected tool gets through, delegate to inner
         return self.inner.execute_tool(name, args)
 
     def roles(self) -> Dict[str, SpecialistRole]:
         inner_roles = self.inner.roles()
-        
+
         # Build the skill metadata list
         skill_dir = os.getenv("TARGET_SKILL_DIR")
         skill_metadata = []
@@ -137,7 +137,7 @@ class SkillAdapter(TargetAdapter):
                                     name = line.split(":", 1)[1].strip()
                                 elif line.startswith("description:"):
                                     description = line.split(":", 1)[1].strip()
-                    
+
                     skill_metadata.append(f"- **{name}**: {description}\n  Path: `{skill_file}`")
 
         skills_intro = (
@@ -149,7 +149,7 @@ class SkillAdapter(TargetAdapter):
             "You MUST use `read_file` on the absolute path of the relevant skill to learn the exact bash commands to run.\n"
             "Ignore any JSON tool names mentioned in your workflow below; you must read and execute the actual scripts.\n\n"
         )
-        
+
         for role in inner_roles.values():
             role.tool_names = {"run_command", "read_file"}
             role.system_prompt = skills_intro + role.system_prompt

@@ -1,14 +1,12 @@
 """Tests for the generic harness engine using the FakeAdapter."""
-import json
 import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from harnessbench.runner.orchestrator import Orchestrator
-from harnessbench.runner.specialist import run_specialist, SpecialistResult
+from harnessbench.runner.specialist import SpecialistResult
 from harnessbench.tests.fake_adapter import FakeAdapter
-from harnessbench import trace
 
 
 @pytest.fixture(autouse=True)
@@ -75,15 +73,15 @@ def test_api_directory_structure(tmp_path, monkeypatch):
     """Verify that runs_dir uses a clean slug and follows the hierarchical convention."""
     from harnessbench import api
     monkeypatch.setattr(api, "check_environment", lambda c, t: {"status": "ok"})
-    
+
     # Mock load_adapter to return a fake adapter
     adapter = FakeAdapter()
     monkeypatch.setattr(api, "load_adapter", lambda t: adapter)
-    
+
     # Write a dummy contract
     contract_path = tmp_path / "test_study.yaml"
     contract_path.write_text("goal: test\nmodels: ['m1']\ncells: {'base': {}}\nreplications: 1")
-    
+
     # Mock datetime to control the timestamp
     class MockDatetime:
         @classmethod
@@ -91,10 +89,10 @@ def test_api_directory_structure(tmp_path, monkeypatch):
             from datetime import datetime
             return datetime(2026, 7, 12, 12, 0, 0)
     monkeypatch.setattr(api, "datetime", MockDatetime)
-    
+
     # Mock load_contract to return a fixed study_id
     monkeypatch.setattr(api, "load_contract", lambda p: ("abcd1234", {"models": ["m1"], "cells": {"base": {}}, "replications": 1, "goal": "test"}))
-    
+
     # Mock the MonolithDriver to do nothing but return a result
     class DummyDriver:
         def __init__(self, *args, **kwargs):
@@ -102,21 +100,21 @@ def test_api_directory_structure(tmp_path, monkeypatch):
         def run(self):
             return MagicMock(outcome="complete")
     monkeypatch.setattr(api, "MonolithDriver", DummyDriver)
-    
+
     # Target string with spaces and slashes
     target_string = "mcp:stdio:uvx mcp-server-motherduck --db-path /some/path/db.duckdb"
-    
+
     # Run the benchmark
     res = api.run_benchmark(str(contract_path), target_string)
-    
+
     runs_dir = res["runs_dir"]
-    
+
     # The target_slug should extract 'mcp-server-motherduck'
     assert "mcp-server-motherduck" in runs_dir
     # It should not contain absolute paths or slashes from the arguments
     assert "--db-path" not in runs_dir
     assert "/some/path" not in runs_dir
-    
+
     # The structure must be runs/{target_slug}/{timestamp}_{study_id}/{study_name}
     parts = runs_dir.split(os.sep)
     assert parts[-1] == "test_study"

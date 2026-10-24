@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any
+from typing import List
 
 def detect_uniform_failure(trace_paths: List[str]) -> bool:
     """
@@ -22,7 +22,7 @@ def detect_uniform_failure(trace_paths: List[str]) -> bool:
                 if event.get("event") == "tool_result":
                     result = event.get("result", "")
                     error_reason = event.get("error_reason", "")
-                    
+
                     # Look for explicit infrastructure errors in stdout/stderr or the harness error reason
                     if result and isinstance(result, str):
                         if "No such file or directory" in result or "command not found" in result:
@@ -32,7 +32,7 @@ def detect_uniform_failure(trace_paths: List[str]) -> bool:
                         if "No such file or directory" in error_reason or "command not found" in error_reason:
                             has_infra_error = True
                             break
-        
+
         if has_infra_error:
             runs_with_errors += 1
 

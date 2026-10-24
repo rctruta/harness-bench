@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Protocol, Optional, Callable, Dict, Any, List
+from typing import Protocol, Optional, Callable, Dict, List
 
 
 @dataclass
@@ -21,7 +21,7 @@ class TerminalPolicy:
 
 class TargetAdapter(Protocol):
     """The contract every target implements. Hides target-specific domains from the generic engine."""
-    
+
     @property
     def name(self) -> str:
         ...

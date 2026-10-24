@@ -69,7 +69,7 @@ def main():
         print(f"Starting run for target: {args.target}")
         outcomes = run_benchmark(args.contract, args.target, dry_run=args.dry_run, alias=args.alias)
         print(f"Run complete. Outcomes: {outcomes.get('outcomes', outcomes)}")
-        
+
         if not args.dry_run and not args.no_grade:
             if outcomes.get("status") == "complete" and "runs_dir" in outcomes:
                 from harnessbench.registry import load_adapter

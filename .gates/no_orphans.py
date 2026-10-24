@@ -10,24 +10,18 @@ The cause: code exists, is tested, and is wired to nothing. A passing test then
 certifies a feature that never runs, and the green tick is the reason nobody
 looks again.
 
-Three specimens of it, all from one repository:
+Three shapes it takes:
 
-  2026-06-15  utils/ddl.py's PostgresDDLGenerator produced PK, index and FK
-              DDL from the YAML spec and had a passing unit test. Nothing in
-              the live path imported it -- only the test instantiated it. The
-              real ingestion ran DROP TABLE; CREATE TABLE (cols) and applied
-              none of it, so `primary_key: true` and `indexes:` in every config
-              were declared-but-unenforced, with a green test giving false
-              confidence that indexes worked.
+  a generator that emits exactly the right output and has a passing unit test,
+  while the live path never imports it -- so what the config declares is never
+  applied, and the green test is the reason nobody checks
 
-  earlier     a check_integrity() that claimed to detect code tampering but
-              inspected a sentinel file existing nowhere except inside the test
-              that planted it, tampered with its own plant, and asserted
-              detection. The real mechanism sat tested-but-unwired.
+  an integrity check that inspects a sentinel existing nowhere except inside
+  the test that planted it: it tampers with its own plant and asserts
+  detection, while the mechanism it claims to guard sits unwired
 
-  2026-06-24  a "semantic firewall" that read fragments from the wrong path,
-              audited a stale run and could never raise -- decorative, and
-              described in a public bio as a capability.
+  a validation layer reading from the wrong path, so it audits stale input and
+  can never raise -- decorative, and indistinguishable from working
 
 What it does: builds the import graph with ast, splits the files into tests and
 live code, and refuses a module that live code never imports.

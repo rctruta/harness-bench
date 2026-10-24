@@ -6,16 +6,15 @@ scratch_external — keep the local notes folder physically outside the reposito
   .gates/scratch_external.py --check      exit 1 on anything not baselined
   .gates/scratch_external.py --baseline   accept today's STRUCTURAL findings
 
-The cause: `scratch/` is where drafts, private notes, employment details and
-half-formed thinking go. Keeping it out of a commit was a .gitignore rule, and
-a .gitignore rule is advisory -- it is consulted only for files git does not
-already track. Once a file is tracked, the rule is silent forever.
+The cause: `scratch/` is where drafts, private notes and half-formed thinking
+go. Keeping it out of a commit was a .gitignore rule, and a .gitignore rule is
+advisory -- it is consulted only for files git does not already track. Once a
+file is tracked, the rule is silent forever.
 
-The specimen, measured 2026-10-19 across nine repositories: harness-bench had
-`scratch/` on line 25 of its .gitignore AND `scratch/skills-antipattern-final.md`
-tracked in HEAD since 2026-07-14, in a PUBLIC repository. The ignore rule was
-present the whole time and did nothing, because the file was added before it or
-with -f. Nothing reported a contradiction, because nothing was looking for one.
+So a repository can carry `scratch/` in .gitignore and a tracked note under
+that same path at the same time, for as long as nobody looks. The ignore rule
+is present the whole time and does nothing, because the file was added before
+it existed or with -f, and nothing reports the contradiction.
 
 So the fix is not a better rule. It is to put the notes somewhere git mechanically
 cannot reach, and have this gate assert that arrangement instead of policing

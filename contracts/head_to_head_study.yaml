@@ -3,7 +3,7 @@
 #
 # This study measures the Reasoning Tax. We want to see how many output tokens
 # the models burn when they are forced to use the SkillAdapter (which only gives
-# them bash and read_file to parse skills) versus the native SBD adapter 
+# them bash and read_file to parse skills) versus the native SBD adapter
 # which has the business logic compiled into the Python backend.
 
 driver: monolith
@@ -17,7 +17,7 @@ poll_budget_seconds: 60
 
 goal: >
   Investigate how DuckDB performance scales on analytical aggregation
-  queries across small, medium, and large partitions. I want to know the 
+  queries across small, medium, and large partitions. I want to know the
   pairwise scaling factors for DuckDB on the analytical_wall suite.
 
 cells:

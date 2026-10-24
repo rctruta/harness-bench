@@ -12,9 +12,9 @@ mcp = FastMCP("harness-bench")
 @mcp.tool()
 def check_harness_environment(contract_path: str, target_name: str) -> dict:
     """Pre-flight check: validates API keys and target health.
-    
+
     Agents MUST run this tool before attempting to execute a benchmark matrix.
-    If it returns an error, the agent MUST resolve the missing keys or 
+    If it returns an error, the agent MUST resolve the missing keys or
     start the target backend before proceeding.
     """
     return check_environment(contract_path, target_name)
@@ -23,7 +23,7 @@ def check_harness_environment(contract_path: str, target_name: str) -> dict:
 @mcp.tool()
 def run_harness_benchmark(contract_path: str, target_name: str, dry_run: bool = False) -> dict:
     """Runs a study contract against a specific target.
-    
+
     This executes the matrix (cells x replications) defined in the contract.
     If dry_run is True, it returns the matrix size without burning tokens.
     """
