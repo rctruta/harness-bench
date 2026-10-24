@@ -563,37 +563,47 @@ if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
     SKIP=$((SKIP+1))
   else
     PP="$ROOT/.gates/.ppobe"
+    REL=".gates/.ppobe/p.py"
     mkdir -p "$PP"
+    # Staged, and named relative to the repository. pre-commit's contract is
+    # the staged set: an untracked file given by absolute path makes
+    # check-added-large-files raise rather than report.
+    stage_probe() { (cd "$ROOT" && git add -f "$REL") >/dev/null 2>&1; }
+    unstage_probe() { (cd "$ROOT" && git rm -q --cached "$REL") >/dev/null 2>&1; }
 
     # Assembled, never literal, for the same reason as the probes above: a
     # fixture indistinguishable from what it tests for blocks its own repo.
     HOMEISH="/U""sers/someone/x.md"
     printf 'OUT = "%s"\n' "$HOMEISH" > "$PP/p.py"
+    stage_probe
     if (cd "$ROOT" && pre-commit run no-absolute-home-paths \
-          --files "$PP/p.py") >/dev/null 2>&1; then
+          --files "$REL") >/dev/null 2>&1; then
       bad "pre-commit no-absolute-home-paths did NOT block a home path"
     else
       ok "pre-commit no-absolute-home-paths blocks a home path"
     fi
 
     printf 'x = 1  # inte''rnal only\n' > "$PP/p.py"
+    stage_probe
     if (cd "$ROOT" && pre-commit run no-private-marker \
-          --files "$PP/p.py") >/dev/null 2>&1; then
+          --files "$REL") >/dev/null 2>&1; then
       bad "pre-commit no-private-marker did NOT block a private declaration"
     else
       ok "pre-commit no-private-marker blocks a private declaration"
     fi
 
     printf '# s''he presented at an event.\n' > "$PP/p.py"
+    stage_probe
     if (cd "$ROOT" && pre-commit run author-voice \
-          --files "$PP/p.py") >/dev/null 2>&1; then
+          --files "$REL") >/dev/null 2>&1; then
       bad "pre-commit author-voice did NOT block the third person"
     else
       ok "pre-commit author-voice blocks the third person"
     fi
 
     printf 'def broken(\n' > "$PP/p.py"
-    if (cd "$ROOT" && pre-commit run check-ast --files "$PP/p.py") \
+    stage_probe
+    if (cd "$ROOT" && pre-commit run check-ast --files "$REL") \
           >/dev/null 2>&1; then
       bad "pre-commit check-ast did NOT block a file that fails to parse"
     else
@@ -603,13 +613,32 @@ if [ -f "$ROOT/.pre-commit-config.yaml" ]; then
     # A gate that refuses everything is as useless as one that refuses
     # nothing, so silence on a clean file is proven too.
     printf 'def fine():\n    return 1\n' > "$PP/p.py"
-    if (cd "$ROOT" && pre-commit run --files "$PP/p.py") >/dev/null 2>&1; then
+    stage_probe
+    if (cd "$ROOT" && pre-commit run --files "$REL") >/dev/null 2>&1; then
       ok "pre-commit quiet on a clean file"
     else
       bad "pre-commit fired on a clean file"
     fi
 
+    unstage_probe
     rm -rf "$PP"
+  fi
+fi
+
+# ------------------------------------------------ hooks are executable -----
+# git ignores a hook without the execute bit and says so only as a hint on
+# push. A hook that is installed, correct and never run is the same outcome as
+# no hook at all.
+if [ -d "$ROOT/.githooks" ]; then
+  NOEXEC=""
+  for h in "$ROOT"/.githooks/*; do
+    [ -f "$h" ] || continue
+    [ -x "$h" ] || NOEXEC="$NOEXEC $(basename "$h")"
+  done
+  if [ -n "$NOEXEC" ]; then
+    bad "hook(s) not executable, so git ignores them:$NOEXEC"
+  else
+    ok "every file in .githooks is executable"
   fi
 fi
 
