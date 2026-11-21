@@ -1,5 +1,9 @@
 # harness-bench — the work before the work, generalized
 
+[![CI](https://github.com/rctruta/harness-bench/actions/workflows/test.yaml/badge.svg)](https://github.com/rctruta/harness-bench/actions/workflows/test.yaml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
+
 **Mission.** Before an organization deploys LLM agents over MCP servers / tool
 APIs, harness-bench measures what that deployment will actually cost and where
 it will actually fail: token cost per architecture, which guidance layers pay
@@ -123,3 +127,19 @@ uv run pytest --run-paid
 # Verify all repository gates
 bash .gates/tests/prove_gates.sh
 ```
+
+## Repository scaffolding
+
+This repository's gates and hooks were scaffolded with [ai-agent-utils](https://github.com/rctruta/ai-agent-utils). None of them is needed to run studies; they enforce hygiene and reproducibility across human and agent contributions.
+
+| Path | What it does |
+| --- | --- |
+| `.gates/` | Mechanical gates for no-hardcoding (values live in data/contracts, not duplicated in code), claim integrity (`.gates/FACTS.yaml`, `verify.py`, `scan.py`), external-only `scratch/` notes, orphan detection, and publish-contract checks. `.gates/tests/prove_gates.sh` proves each gate fires on a planted violation. |
+| `.pre-commit-config.yaml`, `.gitleaks.toml`, `ruff.toml` | Standard checks: files parse, lint is clean (`ruff`), and no secret or home-directory path is committed (`gitleaks`). |
+| `.githooks/` | `pre-commit` runs the checks above; `pre-push` refuses a dirty tree or a failing test suite. Activated via `git config core.hooksPath .githooks`. |
+| `.github/workflows/test.yaml` | Runs the deterministic test suite on pushes and pull requests to `main`. |
+| `AGENTS.md` | Documents these rules and publishing boundaries for coding agents working in the repository. |
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
